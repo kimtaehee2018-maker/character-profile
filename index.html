@@ -317,7 +317,7 @@
         }
 
         .add-root-btn {
-            margin: 10px 16px;
+            margin: 10px 16px 5px 16px;
             padding: 8px;
             background: transparent;
             border: 1px dashed var(--border-color);
@@ -796,6 +796,7 @@
         <div class="tree-container" id="tree-root"></div>
 
         <button class="add-root-btn" onclick="promptAddCategory()">+ 새 카테고리 추가</button>
+        <button class="add-root-btn" style="margin-top: 0; margin-bottom: 10px; border-style: solid;" onclick="renderStatsView()">📊 카테고리/세계관별 인원수</button>
     </div>
 
     <!-- 메인 콘텐츠 영역 -->
@@ -877,6 +878,61 @@
         let isPanning = false;
         let panStartX = 0;
         let panStartY = 0;
+
+        // --------------------------------------------------------------------------
+        // 카테고리 & 세계관별 인원수 집계 화면 출력
+        // --------------------------------------------------------------------------
+        function renderStatsView() {
+            clearRelationSelection();
+            currentSelection = { type: 'stats', categoryId: null, worldId: null, characterId: null };
+            saveData();
+            renderTree();
+
+            const editor = document.getElementById('editor-view');
+            const empty = document.getElementById('empty-view');
+            empty.classList.add('hidden');
+            editor.classList.remove('hidden');
+
+            let totalAllCharacters = 0;
+            let html = `<h2>📊 카테고리 및 세계관별 인원수 현황</h2><br>`;
+
+            appData.categories.forEach(cat => {
+                let categoryTotal = 0;
+
+                let worldListHTML = '';
+                (cat.worlds || []).forEach(world => {
+                    const count = (world.characters || []).length;
+                    categoryTotal += count;
+                    worldListHTML += `<li style="margin: 6px 0; color: var(--text-main);">🌍 <b>${escapeHTML(world.name)}</b>: <span style="color: var(--accent-color); font-weight: bold;">${count}명</span></li>`;
+                });
+
+                const directCharCount = (cat.characters || []).length;
+                categoryTotal += directCharCount;
+                if (directCharCount > 0) {
+                    worldListHTML += `<li style="margin: 6px 0; color: var(--text-muted);">📌 <i>세계관 미지정 인원</i>: <span style="color: var(--accent-color); font-weight: bold;">${directCharCount}명</span></li>`;
+                }
+
+                totalAllCharacters += categoryTotal;
+
+                html += `
+                    <div class="section-box">
+                        <div class="section-title">
+                            <span>📂 ${escapeHTML(cat.name)}</span>
+                            <span>총 ${categoryTotal}명</span>
+                        </div>
+                        <ul style="list-style: none; padding-left: 5px;">
+                            ${worldListHTML || '<li style="color: var(--text-muted); font-size: 13px;">등록된 캐릭터가 없습니다.</li>'}
+                        </ul>
+                    </div>
+                `;
+            });
+
+            html = `<div style="background: rgba(var(--accent-rgb), 0.1); border: 1px solid var(--accent-color); padding: 16px; border-radius: 6px; margin-bottom: 20px; font-weight: bold; font-size: 16px;">
+                        👥 전체 등록 자캐: <span style="color: var(--accent-color); font-size: 20px;">${totalAllCharacters}명</span>
+                    </div>` + html;
+
+            editor.innerHTML = html;
+        }
 
         // --------------------------------------------------------------------------
         // 테마 관리
@@ -1302,6 +1358,8 @@
                 renderWorldOrCategoryView('world', catId, worldId);
             } else if (type === 'category') {
                 renderWorldOrCategoryView('category', catId, null);
+            } else if (type === 'stats') {
+                renderStatsView();
             }
         }
 
