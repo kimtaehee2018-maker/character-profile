@@ -169,7 +169,7 @@
         }
 
         /* ==========================================================================
-           2. 사이드바 (트리 구조, 검색, 테마 셀렉터, 백업/복원)
+           2. 사이드바 (트리 구조, 검색, 태그 필터, 테마 셀렉터, 백업/복원)
            ========================================================================== */
         #sidebar {
             width: var(--sidebar-width);
@@ -208,7 +208,71 @@
         }
 
         .search-box {
+            margin-bottom: 8px;
+        }
+
+        /* 태그 필터 스타일 */
+        .tag-filter-box {
             margin-bottom: 10px;
+            background: var(--bg-input);
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+
+        .tag-filter-title {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+        }
+
+        .tag-filter-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            max-height: 70px;
+            overflow-y: auto;
+        }
+
+        .tag-badge {
+            display: inline-flex;
+            align-items: center;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .tag-badge:hover {
+            border-color: var(--accent-color);
+            color: var(--text-main);
+        }
+
+        .tag-badge.active {
+            background-color: var(--accent-color);
+            color: #ffffff;
+            border-color: var(--accent-color);
+        }
+
+        .character-tags-box {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .tags-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
         }
 
         .backup-controls {
@@ -687,7 +751,6 @@
             transform: scale(1.05);
         }
 
-        /* 하이라이트 포커스 모드: 연관되지 않은 노드/선 페이드 아웃 */
         .relation-node.dimmed {
             opacity: 0.25;
         }
@@ -697,7 +760,7 @@
             stroke-width: 2.5;
             cursor: pointer;
             transition: stroke 0.2s, stroke-width 0.2s, opacity 0.2s;
-            opacity: 0.25; /* 기본 평소에는 은은하게 깔림 */
+            opacity: 0.25;
         }
 
         .relation-line.highlighted {
@@ -721,7 +784,7 @@
             cursor: pointer;
             user-select: none;
             font-weight: bold;
-            opacity: 0.25; /* 기본 평소에는 은은하게 깔림 */
+            opacity: 0.25;
             transition: opacity 0.2s, fill 0.2s;
             paint-order: stroke fill;
             stroke: var(--bg-main);
@@ -764,6 +827,16 @@
             <div class="search-box">
                 <input type="text" id="search-input" placeholder="검색 (자캐, 세계관, 카테고리)..." oninput="handleSearch()">
             </div>
+
+            <!-- 새로 추가된 태그 필터 영역 -->
+            <div class="tag-filter-box">
+                <div class="tag-filter-title">
+                    <span>🏷️ 태그 필터</span>
+                    <span id="reset-tag-btn" class="hidden" onclick="clearTagFilter()" style="cursor:pointer; color:var(--accent-color);">초기화 ✕</span>
+                </div>
+                <div class="tag-filter-container" id="tag-filter-container"></div>
+            </div>
+
             <div class="backup-controls">
                 <button onclick="exportJSON()">💾 백업 (JSON)</button>
                 <button onclick="document.getElementById('import-file').click()">📂 복원</button>
@@ -787,9 +860,9 @@
     </div>
 
     <script>
-        const STORAGE_KEY = 'CHARACTER_ARCHIVE_DATA_V7';
-        const SELECTION_KEY = 'CHARACTER_ARCHIVE_SELECTION_V7';
-        const THEME_KEY = 'CHARACTER_ARCHIVE_THEME_V7';
+        const STORAGE_KEY = 'CHARACTER_ARCHIVE_DATA_V8';
+        const SELECTION_KEY = 'CHARACTER_ARCHIVE_SELECTION_V8';
+        const THEME_KEY = 'CHARACTER_ARCHIVE_THEME_V8';
         
         let appData = {
             categories: [
@@ -807,6 +880,7 @@
                                 {
                                     id: 'char_1',
                                     name: '엘렌',
+                                    tags: ['주연', '집행관', '마법사'],
                                     images: [],
                                     stats: { str: 60, agi: 85, int: 70, vit: 50, dex: 90 },
                                     basicInfo: '24세 / 마법관리국 집행관',
@@ -819,6 +893,7 @@
                                 {
                                     id: 'char_2',
                                     name: '로안',
+                                    tags: ['상사', '조연'],
                                     images: [],
                                     stats: { str: 80, agi: 60, int: 90, vit: 75, dex: 40 },
                                     basicInfo: '27세 / 정보총괄 팀장',
@@ -842,7 +917,8 @@
 
         let currentSelection = { type: null, categoryId: null, worldId: null, characterId: null };
         let currentTheme = 'dark';
-        let selectedRelNodeId = null; // 관계도상에서 클릭 포커스된 노드 ID
+        let activeTagFilter = null; // 활성화된 태그 필터
+        let selectedRelNodeId = null;
         let selectedRelationIndex = null;
         let statChartInstance = null;
 
@@ -897,6 +973,7 @@
                             chars.forEach(c => {
                                 if (!c.images) c.images = [];
                                 if (!c.stats) c.stats = { str: 50, agi: 50, int: 50, vit: 50, dex: 50 };
+                                if (!c.tags) c.tags = []; // 태그 데이터 호환성 보장
                             });
                         };
                         processChars(cat.characters || []);
@@ -936,6 +1013,7 @@
                 try {
                     appData = JSON.parse(e.target.result);
                     saveData();
+                    renderSidebarTags();
                     renderTree();
                     showEmptyView();
                     alert('데이터를 성공적으로 불러왔습니다.');
@@ -947,14 +1025,118 @@
         }
 
         // --------------------------------------------------------------------------
-        // 트리 렌더링
+        // 태그 관련 로직 (사이드바 & 캐릭터 연결)
         // --------------------------------------------------------------------------
+        function getAllTags() {
+            const tagsSet = new Set();
+            appData.categories.forEach(cat => {
+                (cat.characters || []).forEach(c => (c.tags || []).forEach(t => tagsSet.add(t)));
+                (cat.worlds || []).forEach(w => {
+                    (w.characters || []).forEach(c => (c.tags || []).forEach(t => tagsSet.add(t)));
+                });
+            });
+            return Array.from(tagsSet);
+        }
+
+        function renderSidebarTags() {
+            const container = document.getElementById('tag-filter-container');
+            const resetBtn = document.getElementById('reset-tag-btn');
+            if (!container) return;
+
+            const allTags = getAllTags();
+            if (allTags.length === 0) {
+                container.innerHTML = '<span style="font-size:11px; color:var(--text-muted);">등록된 태그 없음</span>';
+                if (resetBtn) resetBtn.classList.add('hidden');
+                return;
+            }
+
+            if (resetBtn) {
+                if (activeTagFilter) resetBtn.classList.remove('hidden');
+                else resetBtn.classList.add('hidden');
+            }
+
+            container.innerHTML = allTags.map(tag => `
+                <span class="tag-badge ${activeTagFilter === tag ? 'active' : ''}" onclick="toggleTagFilter('${escapeHTML(tag)}')">
+                    #${escapeHTML(tag)}
+                </span>
+            `).join('');
+        }
+
+        function toggleTagFilter(tag) {
+            if (activeTagFilter === tag) {
+                activeTagFilter = null;
+            } else {
+                activeTagFilter = tag;
+            }
+            renderSidebarTags();
+            renderTree(document.getElementById('search-input').value);
+        }
+
+        function clearTagFilter() {
+            activeTagFilter = null;
+            renderSidebarTags();
+            renderTree(document.getElementById('search-input').value);
+        }
+
+        function addCharTag(catId, worldId, charId, tagText) {
+            if (!tagText) return;
+            tagText = tagText.trim().replace(/^#/, '');
+            if (!tagText) return;
+
+            const char = getCharacter(catId, worldId, charId);
+            if (char) {
+                if (!char.tags) char.tags = [];
+                if (!char.tags.includes(tagText)) {
+                    char.tags.push(tagText);
+                    saveData();
+                    renderSidebarTags();
+                    renderCharacterEditor(catId, worldId, charId);
+                }
+            }
+        }
+
+        function removeCharTag(catId, worldId, charId, tagIdx) {
+            const char = getCharacter(catId, worldId, charId);
+            if (char && char.tags) {
+                char.tags.splice(tagIdx, 1);
+                saveData();
+                renderSidebarTags();
+                renderCharacterEditor(catId, worldId, charId);
+            }
+        }
+
+        // --------------------------------------------------------------------------
+        // 트리 렌더링 & 검색/태그 필터링
+        // --------------------------------------------------------------------------
+        function matchesCharacter(char, query) {
+            const matchesQuery = !query || char.name.toLowerCase().includes(query.toLowerCase());
+            const matchesTag = !activeTagFilter || (char.tags && char.tags.includes(activeTagFilter));
+            return matchesQuery && matchesTag;
+        }
+
+        function matchesFilterWorld(world, query) {
+            query = query ? query.toLowerCase() : '';
+            const matchesQuery = query && world.name.toLowerCase().includes(query);
+            const hasMatchingChar = (world.characters || []).some(c => matchesCharacter(c, query));
+            if (activeTagFilter) return hasMatchingChar;
+            return matchesQuery || hasMatchingChar;
+        }
+
+        function matchesFilter(category, query) {
+            query = query ? query.toLowerCase() : '';
+            const matchesQuery = query && category.name.toLowerCase().includes(query);
+            const hasMatchingWorld = (category.worlds || []).some(w => matchesFilterWorld(w, query));
+            const hasMatchingChar = (category.characters || []).some(c => matchesCharacter(c, query));
+            if (activeTagFilter) return hasMatchingWorld || hasMatchingChar;
+            return matchesQuery || hasMatchingWorld || hasMatchingChar;
+        }
+
         function renderTree(filterQuery = '') {
             const container = document.getElementById('tree-root');
             container.innerHTML = '';
 
             appData.categories.forEach(cat => {
-                if (filterQuery && !matchesFilter(cat, filterQuery)) return;
+                if ((filterQuery || activeTagFilter) && !matchesFilter(cat, filterQuery)) return;
 
                 const catElement = document.createElement('div');
                 
@@ -981,10 +1163,10 @@
                 catElement.appendChild(catHeader);
 
                 const childrenContainer = document.createElement('div');
-                childrenContainer.className = `tree-children ${cat.expanded || filterQuery ? 'open' : ''}`;
+                childrenContainer.className = `tree-children ${cat.expanded || filterQuery || activeTagFilter ? 'open' : ''}`;
 
                 (cat.worlds || []).forEach(world => {
-                    if (filterQuery && !matchesFilterWorld(world, filterQuery)) return;
+                    if ((filterQuery || activeTagFilter) && !matchesFilterWorld(world, filterQuery)) return;
 
                     const worldHeader = document.createElement('div');
                     worldHeader.className = `tree-item ${isCurrent('world', cat.id, world.id) ? 'active' : ''}`;
@@ -1007,10 +1189,10 @@
                     childrenContainer.appendChild(worldHeader);
 
                     const worldChildren = document.createElement('div');
-                    worldChildren.className = `tree-children ${world.expanded || filterQuery ? 'open' : ''}`;
+                    worldChildren.className = `tree-children ${world.expanded || filterQuery || activeTagFilter ? 'open' : ''}`;
 
                     (world.characters || []).forEach(char => {
-                        if (filterQuery && !char.name.toLowerCase().includes(filterQuery.toLowerCase())) return;
+                        if (!matchesCharacter(char, filterQuery)) return;
 
                         const charItem = document.createElement('div');
                         charItem.className = `tree-item ${isCurrent('character', cat.id, world.id, char.id) ? 'active' : ''}`;
@@ -1028,7 +1210,7 @@
                 });
 
                 (cat.characters || []).forEach(char => {
-                    if (filterQuery && !char.name.toLowerCase().includes(filterQuery.toLowerCase())) return;
+                    if (!matchesCharacter(char, filterQuery)) return;
 
                     const charItem = document.createElement('div');
                     charItem.className = `tree-item ${isCurrent('character', cat.id, null, char.id) ? 'active' : ''}`;
@@ -1052,19 +1234,6 @@
                    currentSelection.categoryId === catId &&
                    currentSelection.worldId === worldId &&
                    currentSelection.characterId === charId;
-        }
-
-        function matchesFilter(category, q) {
-            q = q.toLowerCase();
-            if (category.name.toLowerCase().includes(q)) return true;
-            return (category.worlds || []).some(w => matchesFilterWorld(w, q)) || 
-                   (category.characters || []).some(c => c.name.toLowerCase().includes(q));
-        }
-
-        function matchesFilterWorld(world, q) {
-            q = q.toLowerCase();
-            if (world.name.toLowerCase().includes(q)) return true;
-            return (world.characters || []).some(c => c.name.toLowerCase().includes(q));
         }
 
         function handleSearch() {
@@ -1097,6 +1266,7 @@
             if (!confirm('카테고리와 하위 항목이 모두 삭제됩니다.')) return;
             appData.categories = appData.categories.filter(c => c.id !== catId);
             saveData();
+            renderSidebarTags();
             renderTree();
             showEmptyView();
         }
@@ -1118,6 +1288,7 @@
             if (cat) {
                 cat.worlds = cat.worlds.filter(w => w.id !== worldId);
                 saveData();
+                renderSidebarTags();
                 renderTree();
                 showEmptyView();
             }
@@ -1130,6 +1301,7 @@
             const newChar = {
                 id: 'char_' + Date.now(),
                 name,
+                tags: [],
                 images: [],
                 stats: { str: 50, agi: 50, int: 50, vit: 50, dex: 50 },
                 basicInfo: '',
@@ -1166,6 +1338,7 @@
                 cat.characters = cat.characters.filter(c => c.id !== charId);
             }
             saveData();
+            renderSidebarTags();
             renderTree();
             showEmptyView();
         }
@@ -1207,7 +1380,7 @@
         }
 
         // --------------------------------------------------------------------------
-        // 뷰 제어 & 캐릭터 프로필 (관계 리스트 포함)
+        // 뷰 제어 & 캐릭터 프로필 (관계 리스트 및 태그 포함)
         // --------------------------------------------------------------------------
         function selectNode(type, catId, worldId = null, charId = null) {
             clearRelationSelection();
@@ -1247,8 +1420,17 @@
             }
 
             if (!char.stats) char.stats = { str: 50, agi: 50, int: 50, vit: 50, dex: 50 };
+            if (!char.tags) char.tags = [];
 
-            // 해당 캐릭터가 속한 그룹(세계관 또는 카테고리)에서 이 캐릭터와 맺어진 관계들을 찾아 리스트로 생성
+            // 태그 HTML 렌더링
+            const tagsHTML = (char.tags || []).map((t, idx) => `
+                <span class="tag-badge active" style="padding: 4px 10px; font-size: 12px;">
+                    #${escapeHTML(t)}
+                    <span onclick="removeCharTag('${catId}', '${worldId}', '${charId}', ${idx})" style="margin-left: 6px; cursor: pointer; font-weight: bold; opacity: 0.8;">✕</span>
+                </span>
+            `).join('');
+
+            // 캐릭터 관계 리스트
             const targetGroup = worldId ? getWorld(catId, worldId) : getCategory(catId);
             let relationListHTML = '<p style="font-size:13px; color:var(--text-muted);">등록된 관계가 없습니다.</p>';
             
@@ -1309,7 +1491,22 @@
                     </div>
                 </div>
 
-                <!-- 4번 반영: 프로필 하단에 깔끔한 텍스트 관계 리스트 제공 -->
+                <!-- 새로 추가된 태그 관리 섹션 -->
+                <div class="section-box">
+                    <div class="section-title">🏷️ 태그 관리</div>
+                    <div class="character-tags-box">
+                        <div class="tags-list">
+                            ${tagsHTML || '<span style="font-size:12px; color:var(--text-muted);">등록된 태그가 없습니다. 아래에서 추가해보세요!</span>'}
+                        </div>
+                        <div style="display:flex; gap:8px; margin-top:8px;">
+                            <input type="text" id="add-tag-input" placeholder="새 태그 입력 (예: 주연, 마법사)" 
+                                   onkeydown="if(event.key==='Enter'){ addCharTag('${catId}', '${worldId}', '${charId}', this.value); }">
+                            <button type="button" class="primary" style="white-space:nowrap;" 
+                                    onclick="const el=document.getElementById('add-tag-input'); addCharTag('${catId}', '${worldId}', '${charId}', el.value);">+ 태그 추가</button>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="section-box">
                     <div class="section-title">🔗 이 캐릭터의 관계 서사 요약</div>
                     ${relationListHTML}
@@ -1485,7 +1682,7 @@
         }
 
         // --------------------------------------------------------------------------
-        // 무한 세계관 / 카테고리 관계도 뷰 (1번: 포커스 하이라이트 모드 적용)
+        // 무한 세계관 / 카테고리 관계도 뷰
         // --------------------------------------------------------------------------
         function renderWorldOrCategoryView(type, catId, worldId) {
             const target = type === 'world' ? getWorld(catId, worldId) : getCategory(catId);
@@ -1879,7 +2076,6 @@
             document.addEventListener('mouseup', onMouseUp);
         }
 
-        // 노드 클릭 시: 첫 클릭은 해당 인물 포커스(하이라이트), 이미 포커스된 상태에서 다른 노드를 클릭하면 두 인물 간 관계 추가
         function handleNodeClickForFocusOrRelation(charId, targetGroup) {
             const statusLabel = document.getElementById('relation-status');
             const delBtn = document.getElementById('delete-relation-btn');
@@ -1887,16 +2083,13 @@
             selectedRelationIndex = null;
 
             if (selectedRelNodeId === null) {
-                // 1단계: 포커스(하이라이트) 모드 활성화
                 selectedRelNodeId = charId;
                 const charName = (targetGroup.characters.find(c => c.id === charId) || {}).name || '';
                 if (statusLabel) statusLabel.innerText = `'${charName}' 포커스 됨 (이 인물과 연결된 선만 강조). 다른 인물을 클릭하면 관계 추가`;
                 renderRelations(targetGroup, currentSelection.type, currentSelection.categoryId, currentSelection.worldId);
             } else if (selectedRelNodeId === charId) {
-                // 자기 자신을 한 번 더 누르면 포커스 해제
                 clearRelationSelection();
             } else {
-                // 2단계: 포커스된 상태에서 다른 노드를 클릭했으므로 두 캐릭터 간 관계 추가 모드로 진입
                 const idA = selectedRelNodeId;
                 const idB = charId;
 
@@ -2133,6 +2326,7 @@
         window.onload = function() {
             loadTheme();
             loadData();
+            renderSidebarTags();
             renderTree();
 
             if (currentSelection && currentSelection.type) {
