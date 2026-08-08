@@ -1011,8 +1011,16 @@
         }
 
         function saveData() {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
-            localStorage.setItem(SELECTION_KEY, JSON.stringify(currentSelection));
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+                localStorage.setItem(SELECTION_KEY, JSON.stringify(currentSelection));
+            } catch (e) {
+                if (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014) {
+                    alert('⚠️ 브라우저 저장 공간(LocalStorage)이 부족합니다! 이미지 용량이 너무 크거나 많습니다. 불필요한 이미지를 삭제하거나 압축해서 다시 시도해주세요.');
+                } else {
+                    console.error('데이터 저장 실패:', e);
+                }
+            }
         }
 
         function loadData() {
@@ -1095,20 +1103,18 @@
                 const imgData = ctx.getImageData(0, 0, sampleSize, sampleSize).data;
                 let pixels = [];
 
-                // 1. 흰색/밝은 회색 및 무채색 배경 필터링
                 for (let i = 0; i < imgData.length; i += 4) {
                     const r = imgData[i];
                     const g = imgData[i + 1];
                     const b = imgData[i + 2];
                     const a = imgData[i + 3];
 
-                    if (a < 128) continue; // 투명 영역 제어
+                    if (a < 128) continue;
 
                     const max = Math.max(r, g, b);
                     const min = Math.min(r, g, b);
-                    const diff = max - min; // 채도 차이값
+                    const diff = max - min;
 
-                    // 밝기가 매우 높고 채도가 낮아 흰색/아이보리/연회색에 가까운 피셀 제외
                     const isWhiteOrLightGray = (max > 215 && diff < 35) || (r > 240 && g > 240 && b > 240);
 
                     if (!isWhiteOrLightGray) {
@@ -1116,7 +1122,6 @@
                     }
                 }
 
-                // 이미지 전체가 흰색이라 유효 피셀이 부족할 경우 예외 처리
                 if (pixels.length < 10) {
                     pixels = [];
                     for (let i = 0; i < imgData.length; i += 4) {
@@ -1131,7 +1136,6 @@
                     return;
                 }
 
-                // 2. K-Means 군집화
                 const k = 5;
                 let centroids = [];
                 const step = Math.floor(pixels.length / k);
@@ -1175,7 +1179,6 @@
                     }
                 }
 
-                // 3. 점유율(군집 크기)이 높은 순으로 대표 색상 정렬
                 const colorResults = centroids.map((c, idx) => ({
                     color: c,
                     count: clusters[idx].length
@@ -1806,15 +1809,47 @@
             files.forEach(file => {
                 const reader = new FileReader();
                 reader.onload = function(evt) {
-                    char.images.push(evt.target.result);
-                    readCount++;
-                    if (readCount === files.length) {
-                        saveData();
-                        renderCharacterEditor(catId, worldId, charId);
-                    }
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 800;
+                        const MAX_HEIGHT = 800;
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > height) {
+                            if (width > MAX_WIDTH) {
+                                height *= MAX_WIDTH / width;
+                                width = MAX_WIDTH;
+                            }
+                        } else {
+                            if (height > MAX_HEIGHT) {
+                                width *= MAX_HEIGHT / height;
+                                height = MAX_HEIGHT;
+                            }
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
+                        char.images.push(compressedDataUrl);
+                        readCount++;
+
+                        if (readCount === files.length) {
+                            saveData();
+                            renderCharacterEditor(catId, worldId, charId);
+                        }
+                    };
+                    img.src = evt.target.result;
                 };
                 reader.readAsDataURL(file);
             });
+
+            e.target.value = '';
         }
 
         function deleteCharacterImage(catId, worldId, charId, imgIdx) {
