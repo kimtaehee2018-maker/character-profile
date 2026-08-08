@@ -1767,7 +1767,7 @@
             renderRelations(target, type, catId, worldId);
         }
 
-        // 포스 디렉티드(Force-Directed) 그래프 오토 레이아웃 알고리즘
+        // 포스 디렉티드(Force-Directed) 그래프 오토 레이아웃 알고리즘 (겹침 방지 보정 버전)
         function autoLayoutRelations() {
             const targetGroup = getCurrentTargetGroup();
             if (!targetGroup || !targetGroup.characters || targetGroup.characters.length === 0) {
@@ -1779,44 +1779,60 @@
             const N = chars.length;
 
             if (N === 1) {
-                chars[0].x = 180;
-                chars[0].y = 150;
+                chars[0].x = 200;
+                chars[0].y = 180;
                 saveData();
                 renderRelations(targetGroup, currentSelection.type, currentSelection.categoryId, currentSelection.worldId);
                 return;
             }
 
-            const k = Math.sqrt((800 * 500) / N) * 0.85; // 이상적 거리
-            let temp = 120; // 초기 온도시뮬레이션 값
-            const iterations = 90;
+            // 네모 박스(110x36) 및 라벨 텍스트 공간을 고려한 최소 간격 설정
+            const minSpacingX = 190; 
+            const minSpacingY = 130;
+            const k = 220; // 기본 반발력 기준 거리
+            let temp = 150;
+            const iterations = 120;
             const relations = targetGroup.relations || [];
 
             for (let iter = 0; iter < iterations; iter++) {
                 let dispX = new Array(N).fill(0);
                 let dispY = new Array(N).fill(0);
 
-                // 1. 모든 노드 간의 척력 (반발력)
+                // 1. 모든 노드 간 척력 및 네모 박스 영역 겹침 방지
                 for (let i = 0; i < N; i++) {
                     for (let j = i + 1; j < N; j++) {
                         let dx = chars[i].x - chars[j].x;
                         let dy = chars[i].y - chars[j].y;
-                        if (dx === 0 && dy === 0) {
-                            dx = (Math.random() - 0.5) * 10;
-                            dy = (Math.random() - 0.5) * 10;
+                        if (Math.abs(dx) < 1 && Math.abs(dy) < 1) {
+                            dx = (Math.random() - 0.5) * 20;
+                            dy = (Math.random() - 0.5) * 20;
                         }
+
+                        // 박스 겹침 강제 밀어내기 (가로/세로 영역 검사)
+                        if (Math.abs(dx) < minSpacingX && Math.abs(dy) < minSpacingY) {
+                            const overlapX = minSpacingX - Math.abs(dx);
+                            const overlapY = minSpacingY - Math.abs(dy);
+                            if (overlapX < overlapY) {
+                                const pushX = (dx > 0 ? 1 : -1) * overlapX * 0.6;
+                                dispX[i] += pushX;
+                                dispX[j] -= pushX;
+                            } else {
+                                const pushY = (dy > 0 ? 1 : -1) * overlapY * 0.6;
+                                dispY[i] += pushY;
+                                dispY[j] -= pushY;
+                            }
+                        }
+
                         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
                         const force = (k * k) / dist;
-                        const fx = (dx / dist) * force;
-                        const fy = (dy / dist) * force;
-
-                        dispX[i] += fx;
-                        dispY[i] += fy;
-                        dispX[j] -= fx;
-                        dispY[j] -= fy;
+                        dispX[i] += (dx / dist) * force;
+                        dispY[i] += (dy / dist) * force;
+                        dispX[j] -= (dx / dist) * force;
+                        dispY[j] -= (dy / dist) * force;
                     }
                 }
 
-                // 2. 관계선으로 연결된 노드 간의 인력 (끌어당김)
+                // 2. 관계선으로 연결된 노드 간 인력
                 relations.forEach(rel => {
                     const idxA = chars.findIndex(c => c.id === rel.from);
                     const idxB = chars.findIndex(c => c.id === rel.to);
@@ -1825,17 +1841,15 @@
                         let dy = chars[idxA].y - chars[idxB].y;
                         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
                         const force = (dist * dist) / k;
-                        const fx = (dx / dist) * force;
-                        const fy = (dy / dist) * force;
 
-                        dispX[idxA] -= fx;
-                        dispY[idxA] -= fy;
-                        dispX[idxB] += fx;
-                        dispY[idxB] += fy;
+                        dispX[idxA] -= (dx / dist) * force * 0.4;
+                        dispY[idxA] -= (dy / dist) * force * 0.4;
+                        dispX[idxB] += (dx / dist) * force * 0.4;
+                        dispY[idxB] += (dy / dist) * force * 0.4;
                     }
                 });
 
-                // 3. 온도에 맞춰 노드 위치 갱신
+                // 3. 이동 거리 갱신
                 for (let i = 0; i < N; i++) {
                     const dDist = Math.sqrt(dispX[i] * dispX[i] + dispY[i] * dispY[i]) || 1;
                     const maxDisp = Math.min(dDist, temp);
@@ -1843,15 +1857,15 @@
                     chars[i].y += (dispY[i] / dDist) * maxDisp;
                 }
 
-                temp *= 0.94; // 쿨다운
+                temp *= 0.95; // 쿨다운
             }
 
-            // 좌표 정규화 (캔버스 내 보기 좋은 위치로 패딩 조정)
+            // 좌표 정규화 (좌측 상단 여백 확보)
             let minX = Math.min(...chars.map(c => c.x));
             let minY = Math.min(...chars.map(c => c.y));
             chars.forEach(c => {
-                c.x = Math.round(c.x - minX + 80);
-                c.y = Math.round(c.y - minY + 80);
+                c.x = Math.round(c.x - minX + 100);
+                c.y = Math.round(c.y - minY + 100);
             });
 
             saveData();
@@ -2037,7 +2051,8 @@
                     const x2 = charB.x + 55;
                     const y2 = charB.y + 18;
 
-                    const offset = group.length === 1 ? 0 : (i === 0 ? 30 : -30);
+                    // 단일 선일 때도 완만한 곡선을 주어 라벨 공간 확보 (기존 0 -> 25로 보정)
+                    const offset = group.length === 1 ? 25 : (i === 0 ? 45 : -45);
                     const cp = getControlPoint(x1, y1, x2, y2, offset);
 
                     const isSelected = (selectedRelationIndex === index);
@@ -2065,8 +2080,9 @@
 
                     svg.appendChild(path);
 
+                    // 라벨 위치 계산
                     const midX = 0.25 * x1 + 0.5 * cp.x + 0.25 * x2;
-                    const midY = 0.25 * y1 + 0.5 * cp.y + 0.25 * y2;
+                    const midY = 0.25 * y1 + 0.5 * cp.y + 0.25 * x2;
 
                     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                     text.setAttribute('x', midX);
