@@ -169,7 +169,7 @@
         }
 
         /* ==========================================================================
-           2. 사이드바 (트리 구조, 검색, 태그/세력 필터, 테마 셀렉터, 백업/복원)
+           2. 사이드바 (트리 구조, 검색, 태그 필터, 테마 셀렉터, 백업/복원)
            ========================================================================== */
         #sidebar {
             width: var(--sidebar-width);
@@ -211,9 +211,9 @@
             margin-bottom: 8px;
         }
 
-        /* 태그 및 세력 필터 스타일 */
+        /* 태그 필터 스타일 */
         .tag-filter-box {
-            margin-bottom: 8px;
+            margin-bottom: 10px;
             background: var(--bg-input);
             padding: 8px;
             border-radius: 6px;
@@ -234,7 +234,7 @@
             display: flex;
             flex-wrap: wrap;
             gap: 4px;
-            max-height: 60px;
+            max-height: 70px;
             overflow-y: auto;
         }
 
@@ -278,7 +278,6 @@
         .backup-controls {
             display: flex;
             gap: 6px;
-            margin-top: 4px;
         }
 
         .backup-controls button {
@@ -746,19 +745,6 @@
             transition: opacity 0.2s, transform 0.2s, box-shadow 0.2s;
         }
 
-        .node-affiliation {
-            font-size: 10px;
-            color: var(--accent-color);
-            background: rgba(var(--accent-rgb), 0.15);
-            border-radius: 4px;
-            padding: 1px 4px;
-            margin-bottom: 3px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            font-weight: normal;
-        }
-
         .relation-node.selected {
             border-color: #00e676;
             box-shadow: 0 0 12px rgba(0, 230, 118, 0.6);
@@ -842,22 +828,13 @@
                 <input type="text" id="search-input" placeholder="검색 (자캐, 세계관, 카테고리)..." oninput="handleSearch()">
             </div>
 
-            <!-- 태그 필터 영역 -->
+            <!-- 새로 추가된 태그 필터 영역 -->
             <div class="tag-filter-box">
                 <div class="tag-filter-title">
                     <span>🏷️ 태그 필터</span>
                     <span id="reset-tag-btn" class="hidden" onclick="clearTagFilter()" style="cursor:pointer; color:var(--accent-color);">초기화 ✕</span>
                 </div>
                 <div class="tag-filter-container" id="tag-filter-container"></div>
-            </div>
-
-            <!-- 새 세력/소속 필터 영역 -->
-            <div class="tag-filter-box">
-                <div class="tag-filter-title">
-                    <span>🏛️ 세력/소속 필터</span>
-                    <span id="reset-affiliation-btn" class="hidden" onclick="clearAffiliationFilter()" style="cursor:pointer; color:var(--accent-color);">초기화 ✕</span>
-                </div>
-                <div class="tag-filter-container" id="affiliation-filter-container"></div>
             </div>
 
             <div class="backup-controls">
@@ -903,7 +880,6 @@
                                 {
                                     id: 'char_1',
                                     name: '엘렌',
-                                    affiliation: '마법관리국',
                                     tags: ['주연', '집행관', '마법사'],
                                     images: [],
                                     stats: { str: 60, agi: 85, int: 70, vit: 50, dex: 90 },
@@ -917,7 +893,6 @@
                                 {
                                     id: 'char_2',
                                     name: '로안',
-                                    affiliation: '마법관리국',
                                     tags: ['상사', '조연'],
                                     images: [],
                                     stats: { str: 80, agi: 60, int: 90, vit: 75, dex: 40 },
@@ -943,8 +918,6 @@
         let currentSelection = { type: null, categoryId: null, worldId: null, characterId: null };
         let currentTheme = 'dark';
         let activeTagFilter = null; // 활성화된 태그 필터
-        let activeAffiliationFilter = null; // 활성화된 세력 필터
-        let canvasAffiliationFilter = 'ALL'; // 관계도 캔버스 전용 세력 필터
         let selectedRelNodeId = null;
         let selectedRelationIndex = null;
         let statChartInstance = null;
@@ -1001,7 +974,6 @@
                                 if (!c.images) c.images = [];
                                 if (!c.stats) c.stats = { str: 50, agi: 50, int: 50, vit: 50, dex: 50 };
                                 if (!c.tags) c.tags = []; // 태그 데이터 호환성 보장
-                                if (c.affiliation === undefined) c.affiliation = ''; // 세력 데이터 호환성 보장
                             });
                         };
                         processChars(cat.characters || []);
@@ -1042,7 +1014,6 @@
                     appData = JSON.parse(e.target.result);
                     saveData();
                     renderSidebarTags();
-                    renderSidebarAffiliations();
                     renderTree();
                     showEmptyView();
                     alert('데이터를 성공적으로 불러왔습니다.');
@@ -1135,76 +1106,19 @@
         }
 
         // --------------------------------------------------------------------------
-        // 세력 / 소속 관련 로직 (사이드바 & 캐릭터 연결)
-        // --------------------------------------------------------------------------
-        function getAllAffiliations() {
-            const affSet = new Set();
-            appData.categories.forEach(cat => {
-                (cat.characters || []).forEach(c => { if (c.affiliation && c.affiliation.trim()) affSet.add(c.affiliation.trim()); });
-                (cat.worlds || []).forEach(w => {
-                    (w.characters || []).forEach(c => { if (c.affiliation && c.affiliation.trim()) affSet.add(c.affiliation.trim()); });
-                });
-            });
-            return Array.from(affSet);
-        }
-
-        function renderSidebarAffiliations() {
-            const container = document.getElementById('affiliation-filter-container');
-            const resetBtn = document.getElementById('reset-affiliation-btn');
-            if (!container) return;
-
-            const allAffs = getAllAffiliations();
-            if (allAffs.length === 0) {
-                container.innerHTML = '<span style="font-size:11px; color:var(--text-muted);">등록된 세력 없음</span>';
-                if (resetBtn) resetBtn.classList.add('hidden');
-                return;
-            }
-
-            if (resetBtn) {
-                if (activeAffiliationFilter) resetBtn.classList.remove('hidden');
-                else resetBtn.classList.add('hidden');
-            }
-
-            container.innerHTML = allAffs.map(aff => `
-                <span class="tag-badge ${activeAffiliationFilter === aff ? 'active' : ''}" onclick="toggleAffiliationFilter('${escapeHTML(aff)}')">
-                    🏛️ ${escapeHTML(aff)}
-                </span>
-            `).join('');
-        }
-
-        function toggleAffiliationFilter(aff) {
-            if (activeAffiliationFilter === aff) {
-                activeAffiliationFilter = null;
-            } else {
-                activeAffiliationFilter = aff;
-            }
-            renderSidebarAffiliations();
-            renderTree(document.getElementById('search-input').value);
-        }
-
-        function clearAffiliationFilter() {
-            activeAffiliationFilter = null;
-            renderSidebarAffiliations();
-            renderTree(document.getElementById('search-input').value);
-        }
-
-        // --------------------------------------------------------------------------
-        // 트리 렌더링 & 검색/태그/세력 필터링
+        // 트리 렌더링 & 검색/태그 필터링
         // --------------------------------------------------------------------------
         function matchesCharacter(char, query) {
-            const matchesQuery = !query || 
-                char.name.toLowerCase().includes(query.toLowerCase()) || 
-                (char.affiliation && char.affiliation.toLowerCase().includes(query.toLowerCase()));
+            const matchesQuery = !query || char.name.toLowerCase().includes(query.toLowerCase());
             const matchesTag = !activeTagFilter || (char.tags && char.tags.includes(activeTagFilter));
-            const matchesAffiliation = !activeAffiliationFilter || (char.affiliation === activeAffiliationFilter);
-            return matchesQuery && matchesTag && matchesAffiliation;
+            return matchesQuery && matchesTag;
         }
 
         function matchesFilterWorld(world, query) {
             query = query ? query.toLowerCase() : '';
             const matchesQuery = query && world.name.toLowerCase().includes(query);
             const hasMatchingChar = (world.characters || []).some(c => matchesCharacter(c, query));
-            if (activeTagFilter || activeAffiliationFilter) return hasMatchingChar;
+            if (activeTagFilter) return hasMatchingChar;
             return matchesQuery || hasMatchingChar;
         }
 
@@ -1213,7 +1127,7 @@
             const matchesQuery = query && category.name.toLowerCase().includes(query);
             const hasMatchingWorld = (category.worlds || []).some(w => matchesFilterWorld(w, query));
             const hasMatchingChar = (category.characters || []).some(c => matchesCharacter(c, query));
-            if (activeTagFilter || activeAffiliationFilter) return hasMatchingWorld || hasMatchingChar;
+            if (activeTagFilter) return hasMatchingWorld || hasMatchingChar;
             return matchesQuery || hasMatchingWorld || hasMatchingChar;
         }
 
@@ -1222,7 +1136,7 @@
             container.innerHTML = '';
 
             appData.categories.forEach(cat => {
-                if ((filterQuery || activeTagFilter || activeAffiliationFilter) && !matchesFilter(cat, filterQuery)) return;
+                if ((filterQuery || activeTagFilter) && !matchesFilter(cat, filterQuery)) return;
 
                 const catElement = document.createElement('div');
                 
@@ -1249,10 +1163,10 @@
                 catElement.appendChild(catHeader);
 
                 const childrenContainer = document.createElement('div');
-                childrenContainer.className = `tree-children ${cat.expanded || filterQuery || activeTagFilter || activeAffiliationFilter ? 'open' : ''}`;
+                childrenContainer.className = `tree-children ${cat.expanded || filterQuery || activeTagFilter ? 'open' : ''}`;
 
                 (cat.worlds || []).forEach(world => {
-                    if ((filterQuery || activeTagFilter || activeAffiliationFilter) && !matchesFilterWorld(world, filterQuery)) return;
+                    if ((filterQuery || activeTagFilter) && !matchesFilterWorld(world, filterQuery)) return;
 
                     const worldHeader = document.createElement('div');
                     worldHeader.className = `tree-item ${isCurrent('world', cat.id, world.id) ? 'active' : ''}`;
@@ -1275,7 +1189,7 @@
                     childrenContainer.appendChild(worldHeader);
 
                     const worldChildren = document.createElement('div');
-                    worldChildren.className = `tree-children ${world.expanded || filterQuery || activeTagFilter || activeAffiliationFilter ? 'open' : ''}`;
+                    worldChildren.className = `tree-children ${world.expanded || filterQuery || activeTagFilter ? 'open' : ''}`;
 
                     (world.characters || []).forEach(char => {
                         if (!matchesCharacter(char, filterQuery)) return;
@@ -1353,7 +1267,6 @@
             appData.categories = appData.categories.filter(c => c.id !== catId);
             saveData();
             renderSidebarTags();
-            renderSidebarAffiliations();
             renderTree();
             showEmptyView();
         }
@@ -1376,7 +1289,6 @@
                 cat.worlds = cat.worlds.filter(w => w.id !== worldId);
                 saveData();
                 renderSidebarTags();
-                renderSidebarAffiliations();
                 renderTree();
                 showEmptyView();
             }
@@ -1389,7 +1301,6 @@
             const newChar = {
                 id: 'char_' + Date.now(),
                 name,
-                affiliation: '',
                 tags: [],
                 images: [],
                 stats: { str: 50, agi: 50, int: 50, vit: 50, dex: 50 },
@@ -1428,7 +1339,6 @@
             }
             saveData();
             renderSidebarTags();
-            renderSidebarAffiliations();
             renderTree();
             showEmptyView();
         }
@@ -1470,7 +1380,7 @@
         }
 
         // --------------------------------------------------------------------------
-        // 뷰 제어 & 캐릭터 프로필 (관계 리스트 및 태그, 세력 입력 포함)
+        // 뷰 제어 & 캐릭터 프로필 (관계 리스트 및 태그 포함)
         // --------------------------------------------------------------------------
         function selectNode(type, catId, worldId = null, charId = null) {
             clearRelationSelection();
@@ -1511,7 +1421,6 @@
 
             if (!char.stats) char.stats = { str: 50, agi: 50, int: 50, vit: 50, dex: 50 };
             if (!char.tags) char.tags = [];
-            if (char.affiliation === undefined) char.affiliation = '';
 
             // 태그 HTML 렌더링
             const tagsHTML = (char.tags || []).map((t, idx) => `
@@ -1582,15 +1491,7 @@
                     </div>
                 </div>
 
-                <!-- 세력 / 소속 관리 섹션 -->
-                <div class="section-box">
-                    <div class="section-title">🏛️ 세력 / 소속</div>
-                    <input type="text" value="${escapeHTML(char.affiliation || '')}" 
-                           placeholder="예: 마법관리국, 제국, 반란군 등 (클러스터링 및 필터에 사용됨)" 
-                           onchange="updateCharData('${catId}', '${worldId}', '${charId}', 'affiliation', this.value); renderSidebarAffiliations();">
-                </div>
-
-                <!-- 태그 관리 섹션 -->
+                <!-- 새로 추가된 태그 관리 섹션 -->
                 <div class="section-box">
                     <div class="section-title">🏷️ 태그 관리</div>
                     <div class="character-tags-box">
@@ -1650,7 +1551,7 @@
                 <div class="section-box">
                     <div class="section-title">기본 정보</div>
                     <input type="text" value="${escapeHTML(char.basicInfo || '')}" 
-                           placeholder="예: 나이, 성별, 직업 등" onchange="updateCharData('${catId}', '${worldId}', '${charId}', 'basicInfo', this.value)">
+                           placeholder="예: 나이, 성별, 소속, 직업 등" onchange="updateCharData('${catId}', '${worldId}', '${charId}', 'basicInfo', this.value)">
                 </div>
 
                 ${createWYSIWYGEditor('외형', 'appearance', char.appearance, catId, worldId, charId)}
@@ -1794,7 +1695,6 @@
             panY = 0;
             zoomScale = 1;
             selectedRelNodeId = null;
-            canvasAffiliationFilter = 'ALL';
 
             const editor = document.getElementById('editor-view');
             
@@ -1826,15 +1726,6 @@
                 <div class="relation-view">
                     <div class="relation-toolbar">
                         <button onclick="exportRelationPNG()" class="primary">📷 관계도 PNG 저장</button>
-                        <button onclick="clusterNodesByAffiliation()" style="background-color: var(--bg-hover); border-color: var(--accent-color); font-weight:bold;">🧲 세력별 클러스터링</button>
-                        
-                        <div style="display:flex; align-items:center; gap:4px; font-size:12px;">
-                            <label for="canvas-aff-select">🏛️ 세력 필터:</label>
-                            <select id="canvas-aff-select" style="padding: 3px 6px; font-size: 12px; width: auto;" onchange="filterCanvasByAffiliation(this.value)">
-                                <option value="ALL">전체 보기</option>
-                            </select>
-                        </div>
-
                         <button id="delete-relation-btn" class="danger hidden" onclick="deleteSelectedRelation()">🗑️ 관계선 삭제</button>
                         <button onclick="clearRelationSelection()">❌ 포커스/선택 해제 (ESC)</button>
                         <span id="relation-status" style="font-size:12px; color:var(--accent-color); font-weight:bold;"></span>
@@ -1963,48 +1854,20 @@
             const characters = targetGroup.characters || [];
             if (!targetGroup.relations) targetGroup.relations = [];
 
-            // 캔버스 세력 필터 드롭다운 채우기
-            const canvasAffSelect = document.getElementById('canvas-aff-select');
-            if (canvasAffSelect) {
-                const currentVal = canvasAffiliationFilter;
-                const affSet = new Set();
-                characters.forEach(c => { if (c.affiliation && c.affiliation.trim()) affSet.add(c.affiliation.trim()); });
-                
-                let selectHTML = '<option value="ALL">전체 보기</option>';
-                affSet.forEach(aff => {
-                    selectHTML += `<option value="${escapeHTML(aff)}" ${currentVal === aff ? 'selected' : ''}>🏛️ ${escapeHTML(aff)}</option>`;
-                });
-                selectHTML += `<option value="UNASSIGNED" ${currentVal === 'UNASSIGNED' ? 'selected' : ''}>미소속</option>`;
-                canvasAffSelect.innerHTML = selectHTML;
-            }
-
-            // 클러스터 외곽선 영역 시각화
-            drawClusterBackgrounds(targetGroup, svg);
-
             characters.forEach(char => {
                 if (char.x === undefined) char.x = 100 + Math.random() * 300;
                 if (char.y === undefined) char.y = 100 + Math.random() * 300;
-
-                const matchesCanvasAff = (canvasAffiliationFilter === 'ALL') ||
-                    (canvasAffiliationFilter === 'UNASSIGNED' && (!char.affiliation || !char.affiliation.trim())) ||
-                    (char.affiliation === canvasAffiliationFilter);
 
                 const isConnected = selectedRelNodeId === null || 
                     char.id === selectedRelNodeId || 
                     targetGroup.relations.some(r => (r.from === selectedRelNodeId && r.to === char.id) || (r.from === char.id && r.to === selectedRelNodeId));
 
-                const isDimmed = (selectedRelNodeId !== null && !isConnected) || (!matchesCanvasAff);
-
                 const node = document.createElement('div');
-                node.className = `relation-node ${selectedRelNodeId === char.id ? 'selected' : ''} ${isDimmed ? 'dimmed' : ''}`;
+                node.className = `relation-node ${selectedRelNodeId === char.id ? 'selected' : ''} ${selectedRelNodeId !== null && !isConnected ? 'dimmed' : ''}`;
                 node.style.left = char.x + 'px';
                 node.style.top = char.y + 'px';
+                node.innerText = char.name;
                 node.id = `node-${char.id}`;
-
-                node.innerHTML = `
-                    ${char.affiliation ? `<div class="node-affiliation">${escapeHTML(char.affiliation)}</div>` : ''}
-                    <div>${escapeHTML(char.name)}</div>
-                `;
 
                 node.onmousedown = (e) => startDragNode(e, char, targetGroup);
                 node.onclick = (e) => {
@@ -2017,135 +1880,6 @@
 
             drawRelationLines(targetGroup);
             updateViewportTransform();
-        }
-
-        // 세력별 클러스터 영역 시각화
-        function drawClusterBackgrounds(targetGroup, svg) {
-            const groups = {};
-            (targetGroup.characters || []).forEach(char => {
-                const key = (char.affiliation && char.affiliation.trim()) ? char.affiliation.trim() : null;
-                if (key) {
-                    if (!groups[key]) groups[key] = [];
-                    groups[key].push(char);
-                }
-            });
-
-            const colors = [
-                'rgba(124, 77, 255, 0.08)',
-                'rgba(0, 230, 118, 0.08)',
-                'rgba(0, 176, 255, 0.08)',
-                'rgba(255, 171, 0, 0.08)',
-                'rgba(255, 64, 129, 0.08)'
-            ];
-            const borderColors = [
-                'rgba(124, 77, 255, 0.35)',
-                'rgba(0, 230, 118, 0.35)',
-                'rgba(0, 176, 255, 0.35)',
-                'rgba(255, 171, 0, 0.35)',
-                'rgba(255, 64, 129, 0.35)'
-            ];
-
-            let colorIdx = 0;
-            Object.keys(groups).forEach(key => {
-                const chars = groups[key];
-                if (chars.length === 0) return;
-
-                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-                chars.forEach(c => {
-                    if (c.x < minX) minX = c.x;
-                    if (c.y < minY) minY = c.y;
-                    if (c.x + 110 > maxX) maxX = c.x + 110;
-                    if (c.y + 50 > maxY) maxY = c.y + 50;
-                });
-
-                const pad = 24;
-                minX -= pad; minY -= pad; maxX += pad; maxY += pad;
-                const width = maxX - minX;
-                const height = maxY - minY;
-
-                const fillColor = colors[colorIdx % colors.length];
-                const strokeColor = borderColors[colorIdx % borderColors.length];
-                colorIdx++;
-
-                const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                rect.setAttribute('x', minX);
-                rect.setAttribute('y', minY);
-                rect.setAttribute('width', width);
-                rect.setAttribute('height', height);
-                rect.setAttribute('rx', '16');
-                rect.setAttribute('ry', '16');
-                rect.setAttribute('fill', fillColor);
-                rect.setAttribute('stroke', strokeColor);
-                rect.setAttribute('stroke-width', '1.5');
-                rect.setAttribute('stroke-dasharray', '4 4');
-                rect.setAttribute('pointer-events', 'none');
-
-                svg.appendChild(rect);
-
-                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                text.setAttribute('x', minX + 12);
-                text.setAttribute('y', minY + 16);
-                text.setAttribute('fill', strokeColor.replace('0.35', '0.85'));
-                text.setAttribute('font-size', '11');
-                text.setAttribute('font-weight', 'bold');
-                text.setAttribute('pointer-events', 'none');
-                text.textContent = `🏛️ ${key}`;
-                svg.appendChild(text);
-            });
-        }
-
-        // 세력별 클러스터링 알고리즘 (자동 원형/그룹 정렬 배치)
-        function clusterNodesByAffiliation() {
-            const targetGroup = getCurrentTargetGroup();
-            if (!targetGroup || !targetGroup.characters || targetGroup.characters.length === 0) return;
-
-            const groups = {};
-            targetGroup.characters.forEach(char => {
-                const key = (char.affiliation && char.affiliation.trim()) ? char.affiliation.trim() : '미소속/기타';
-                if (!groups[key]) groups[key] = [];
-                groups[key].push(char);
-            });
-
-            const groupKeys = Object.keys(groups);
-            const totalGroups = groupKeys.length;
-
-            if (totalGroups === 0) return;
-
-            const centerCX = 450;
-            const centerCY = 350;
-            const groupRadius = totalGroups === 1 ? 0 : Math.max(220, totalGroups * 70);
-
-            groupKeys.forEach((key, gIdx) => {
-                const angle = (2 * Math.PI * gIdx) / totalGroups;
-                const groupCX = totalGroups === 1 ? centerCX : centerCX + groupRadius * Math.cos(angle);
-                const groupCY = totalGroups === 1 ? centerCY : centerCY + groupRadius * Math.sin(angle);
-
-                const members = groups[key];
-                const memberCount = members.length;
-                const memberRadius = memberCount === 1 ? 0 : Math.max(70, memberCount * 25);
-
-                members.forEach((char, mIdx) => {
-                    if (memberCount === 1) {
-                        char.x = groupCX - 55;
-                        char.y = groupCY - 18;
-                    } else {
-                        const mAngle = (2 * Math.PI * mIdx) / memberCount;
-                        char.x = groupCX + memberRadius * Math.cos(mAngle) - 55;
-                        char.y = groupCY + memberRadius * Math.sin(mAngle) - 18;
-                    }
-                });
-            });
-
-            saveData();
-            renderRelations(targetGroup, currentSelection.type, currentSelection.categoryId, currentSelection.worldId);
-        }
-
-        function filterCanvasByAffiliation(value) {
-            canvasAffiliationFilter = value;
-            const targetGroup = getCurrentTargetGroup();
-            if (targetGroup) {
-                renderRelations(targetGroup, currentSelection.type, currentSelection.categoryId, currentSelection.worldId);
-            }
         }
 
         function getCurrentTargetGroup() {
@@ -2175,6 +1909,10 @@
         function drawRelationLines(targetGroup) {
             const svg = document.getElementById('relation-svg');
             if (!svg) return;
+
+            const defs = svg.querySelector('defs');
+            svg.innerHTML = '';
+            if (defs) svg.appendChild(defs);
 
             const groupedRelations = {};
             (targetGroup.relations || []).forEach((rel, index) => {
@@ -2325,7 +2063,7 @@
                     nodeElement.style.left = char.x + 'px';
                     nodeElement.style.top = char.y + 'px';
                 }
-                renderRelations(targetGroup, currentSelection.type, currentSelection.categoryId, currentSelection.worldId);
+                drawRelationLines(targetGroup);
             }
 
             function onMouseUp() {
@@ -2422,7 +2160,7 @@
         }
 
         // --------------------------------------------------------------------------
-        // 관계도 PNG 고화질 이미지 내보내기 (Export PNG - 세력 정보 포함)
+        // 관계도 PNG 고화질 이미지 내보내기 (Export PNG)
         // --------------------------------------------------------------------------
         function exportRelationPNG() {
             const targetGroup = getCurrentTargetGroup();
@@ -2496,7 +2234,7 @@
 
                         if (rel.label) {
                             const midX = 0.25 * x1 + 0.5 * cp.x + 0.25 * x2;
-                            const midY = 0.25 * y1 + 0.5 * cp.y + 0.25 * y2;
+                            const midY = 0.25 * y1 + 0.5 * cp.y + 0.25 * x2;
 
                             ctx.font = 'bold 12px sans-serif';
                             ctx.textAlign = 'center';
@@ -2518,7 +2256,7 @@
                 const nx = char.x - minX;
                 const ny = char.y - minY;
                 const nw = 110;
-                const nh = 40;
+                const nh = 36;
 
                 ctx.fillStyle = bgCard;
                 ctx.strokeStyle = accentColor;
@@ -2528,19 +2266,11 @@
                 ctx.fill();
                 ctx.stroke();
 
-                if (char.affiliation) {
-                    ctx.font = '10px sans-serif';
-                    ctx.fillStyle = accentColor;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'top';
-                    ctx.fillText(`🏛️ ${char.affiliation}`, nx + nw / 2, ny + 5);
-                }
-
-                ctx.font = 'bold 12px sans-serif';
+                ctx.font = 'bold 13px sans-serif';
                 ctx.fillStyle = textColor;
                 ctx.textAlign = 'center';
-                ctx.textBaseline = char.affiliation ? 'bottom' : 'middle';
-                ctx.fillText(char.name, nx + nw / 2, char.affiliation ? ny + nh - 6 : ny + nh / 2);
+                ctx.textBaseline = 'middle';
+                ctx.fillText(char.name, nx + nw / 2, ny + nh / 2);
             });
 
             const imageURI = canvas.toDataURL('image/png');
@@ -2597,7 +2327,6 @@
             loadTheme();
             loadData();
             renderSidebarTags();
-            renderSidebarAffiliations();
             renderTree();
 
             if (currentSelection && currentSelection.type) {
