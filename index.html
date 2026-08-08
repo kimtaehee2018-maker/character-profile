@@ -168,50 +168,6 @@
             border-color: var(--accent-color);
         }
 
-        /* 태그 및 위키 링크 스타일 */
-        .tag-badge {
-            display: inline-block;
-            background-color: rgba(var(--accent-rgb), 0.18);
-            color: var(--accent-color);
-            border: 1px solid rgba(var(--accent-rgb), 0.35);
-            padding: 3px 9px;
-            border-radius: 12px;
-            font-size: 12px;
-            margin-right: 6px;
-            margin-top: 6px;
-            font-weight: 500;
-        }
-
-        .wiki-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 2px;
-            color: var(--accent-color);
-            font-weight: bold;
-            background-color: rgba(var(--accent-rgb), 0.15);
-            border: 1px solid rgba(var(--accent-rgb), 0.3);
-            padding: 1px 6px;
-            border-radius: 4px;
-            cursor: pointer;
-            text-decoration: none;
-            user-select: none;
-            transition: all 0.2s;
-        }
-
-        .wiki-link:hover {
-            background-color: rgba(var(--accent-rgb), 0.35);
-            border-color: var(--accent-color);
-            transform: translateY(-1px);
-        }
-
-        .tree-item-tags {
-            font-size: 10.5px;
-            color: var(--accent-color);
-            margin-left: 6px;
-            opacity: 0.85;
-            font-weight: normal;
-        }
-
         /* ==========================================================================
            2. 사이드바 (트리 구조, 검색, 테마 셀렉터, 백업/복원)
            ========================================================================== */
@@ -339,7 +295,7 @@
         }
 
         .add-root-btn {
-            margin: 10px 16px 5px 16px;
+            margin: 10px 16px;
             padding: 8px;
             background: transparent;
             border: 1px dashed var(--border-color);
@@ -628,7 +584,7 @@
         }
 
         /* ==========================================================================
-           4. 무한 관계도 Canvas
+           4. 무한 관계도 Canvas (하이라이트 포커스 모드 및 페이드 효과 적용)
            ========================================================================== */
         .relation-view {
             width: 100%;
@@ -731,6 +687,7 @@
             transform: scale(1.05);
         }
 
+        /* 하이라이트 포커스 모드: 연관되지 않은 노드/선 페이드 아웃 */
         .relation-node.dimmed {
             opacity: 0.25;
         }
@@ -740,7 +697,7 @@
             stroke-width: 2.5;
             cursor: pointer;
             transition: stroke 0.2s, stroke-width 0.2s, opacity 0.2s;
-            opacity: 0.25;
+            opacity: 0.25; /* 기본 평소에는 은은하게 깔림 */
         }
 
         .relation-line.highlighted {
@@ -764,7 +721,7 @@
             cursor: pointer;
             user-select: none;
             font-weight: bold;
-            opacity: 0.25;
+            opacity: 0.25; /* 기본 평소에는 은은하게 깔림 */
             transition: opacity 0.2s, fill 0.2s;
             paint-order: stroke fill;
             stroke: var(--bg-main);
@@ -805,7 +762,7 @@
             </div>
 
             <div class="search-box">
-                <input type="text" id="search-input" placeholder="검색 (이름, #태그, 세계관)..." oninput="handleSearch()">
+                <input type="text" id="search-input" placeholder="검색 (자캐, 세계관, 카테고리)..." oninput="handleSearch()">
             </div>
             <div class="backup-controls">
                 <button onclick="exportJSON()">💾 백업 (JSON)</button>
@@ -817,7 +774,6 @@
         <div class="tree-container" id="tree-root"></div>
 
         <button class="add-root-btn" onclick="promptAddCategory()">+ 새 카테고리 추가</button>
-        <button class="add-root-btn" style="margin-top: 0; margin-bottom: 10px; border-style: solid;" onclick="renderStatsView()">📊 카테고리/세계관별 인원수</button>
     </div>
 
     <!-- 메인 콘텐츠 영역 -->
@@ -831,9 +787,9 @@
     </div>
 
     <script>
-        const STORAGE_KEY = 'CHARACTER_ARCHIVE_DATA_V8';
-        const SELECTION_KEY = 'CHARACTER_ARCHIVE_SELECTION_V8';
-        const THEME_KEY = 'CHARACTER_ARCHIVE_THEME_V8';
+        const STORAGE_KEY = 'CHARACTER_ARCHIVE_DATA_V7';
+        const SELECTION_KEY = 'CHARACTER_ARCHIVE_SELECTION_V7';
+        const THEME_KEY = 'CHARACTER_ARCHIVE_THEME_V7';
         
         let appData = {
             categories: [
@@ -851,12 +807,11 @@
                                 {
                                     id: 'char_1',
                                     name: '엘렌',
-                                    tags: ['집행관', '마법사', '20대'],
                                     images: [],
                                     stats: { str: 60, agi: 85, int: 70, vit: 50, dex: 90 },
                                     basicInfo: '24세 / 마법관리국 집행관',
                                     appearance: '<b>흑발 숏컷</b>, 붉은 눈, 제복 차림',
-                                    personality: '냉정해 보이지만 <span style="color: #7c4dff;">책임감이 강함</span>. [[로안]]과 깊은 신뢰 관계.',
+                                    personality: '냉정해 보이지만 <span style="color: #7c4dff;">책임감이 강함</span>.',
                                     setting: '어릴 적 사태로 고아가 되어 집행관으로 자랐다.',
                                     memo: '주요 무기: 스펠건',
                                     x: 100, y: 120
@@ -864,13 +819,12 @@
                                 {
                                     id: 'char_2',
                                     name: '로안',
-                                    tags: ['팀장', '보호자', '정보반'],
                                     images: [],
                                     stats: { str: 80, agi: 60, int: 90, vit: 75, dex: 40 },
                                     basicInfo: '27세 / 정보총괄 팀장',
                                     appearance: '금발, 안경 착용',
                                     personality: '온화하지만 속을 알 수 없음.',
-                                    setting: '[[엘렌]]의 상사이자 보호자 역할.',
+                                    setting: '엘렌의 상사이자 보호자 역할.',
                                     memo: '',
                                     x: 340, y: 120
                                 }
@@ -888,110 +842,17 @@
 
         let currentSelection = { type: null, categoryId: null, worldId: null, characterId: null };
         let currentTheme = 'dark';
-        let selectedRelNodeId = null;
+        let selectedRelNodeId = null; // 관계도상에서 클릭 포커스된 노드 ID
         let selectedRelationIndex = null;
         let statChartInstance = null;
 
+        // 무한 캔버스 (Pan/Zoom) 상태 변수
         let panX = 0;
         let panY = 0;
         let zoomScale = 1;
         let isPanning = false;
         let panStartX = 0;
         let panStartY = 0;
-
-        // --------------------------------------------------------------------------
-        // 위키 스타일 내부 링크 파싱 및 이동
-        // --------------------------------------------------------------------------
-        function processWikiSyntax(html) {
-            if (!html) return '';
-            return html.replace(/\[\[(.*?)\]\]/g, function(match, charName) {
-                const trimmed = charName.trim();
-                return `<span class="wiki-link" contenteditable="false" onclick="navigateToByName('${escapeHTML(trimmed)}')" title="'${escapeHTML(trimmed)}' 프로필로 이동">🔗 ${escapeHTML(trimmed)}</span>`;
-            });
-        }
-
-        function navigateToByName(charName) {
-            const query = charName.trim().toLowerCase();
-            for (const cat of appData.categories) {
-                for (const char of (cat.characters || [])) {
-                    if (char.name.trim().toLowerCase() === query) {
-                        selectNode('character', cat.id, null, char.id);
-                        return;
-                    }
-                }
-                for (const world of (cat.worlds || [])) {
-                    for (const char of (world.characters || [])) {
-                        if (char.name.trim().toLowerCase() === query) {
-                            selectNode('character', cat.id, world.id, char.id);
-                            return;
-                        }
-                    }
-                }
-            }
-            alert(`'${charName}' 캐릭터를 찾을 수 없습니다.\n자캐 이름을 정확히 입력했는지 확인해주세요.`);
-        }
-
-        function insertWikiLink() {
-            const charName = prompt('연결할 자캐 이름을 입력하세요:');
-            if (charName) {
-                document.execCommand('insertHTML', false, `[[${charName.trim()}]]`);
-            }
-        }
-
-        // --------------------------------------------------------------------------
-        // 카테고리 & 세계관별 인원수 집계 화면 출력
-        // --------------------------------------------------------------------------
-        function renderStatsView() {
-            clearRelationSelection();
-            currentSelection = { type: 'stats', categoryId: null, worldId: null, characterId: null };
-            saveData();
-            renderTree();
-
-            const editor = document.getElementById('editor-view');
-            const empty = document.getElementById('empty-view');
-            empty.classList.add('hidden');
-            editor.classList.remove('hidden');
-
-            let totalAllCharacters = 0;
-            let html = `<h2>📊 카테고리 및 세계관별 인원수 현황</h2><br>`;
-
-            appData.categories.forEach(cat => {
-                let categoryTotal = 0;
-
-                let worldListHTML = '';
-                (cat.worlds || []).forEach(world => {
-                    const count = (world.characters || []).length;
-                    categoryTotal += count;
-                    worldListHTML += `<li style="margin: 6px 0; color: var(--text-main);">🌍 <b>${escapeHTML(world.name)}</b>: <span style="color: var(--accent-color); font-weight: bold;">${count}명</span></li>`;
-                });
-
-                const directCharCount = (cat.characters || []).length;
-                categoryTotal += directCharCount;
-                if (directCharCount > 0) {
-                    worldListHTML += `<li style="margin: 6px 0; color: var(--text-muted);">📌 <i>세계관 미지정 인원</i>: <span style="color: var(--accent-color); font-weight: bold;">${directCharCount}명</span></li>`;
-                }
-
-                totalAllCharacters += categoryTotal;
-
-                html += `
-                    <div class="section-box">
-                        <div class="section-title">
-                            <span>📂 ${escapeHTML(cat.name)}</span>
-                            <span>총 ${categoryTotal}명</span>
-                        </div>
-                        <ul style="list-style: none; padding-left: 5px;">
-                            ${worldListHTML || '<li style="color: var(--text-muted); font-size: 13px;">등록된 캐릭터가 없습니다.</li>'}
-                        </ul>
-                    </div>
-                `;
-            });
-
-            html = `<div style="background: rgba(var(--accent-rgb), 0.1); border: 1px solid var(--accent-color); padding: 16px; border-radius: 6px; margin-bottom: 20px; font-weight: bold; font-size: 16px;">
-                        👥 전체 등록 자캐: <span style="color: var(--accent-color); font-size: 20px;">${totalAllCharacters}명</span>
-                    </div>` + html;
-
-            editor.innerHTML = html;
-        }
 
         // --------------------------------------------------------------------------
         // 테마 관리
@@ -1036,7 +897,6 @@
                             chars.forEach(c => {
                                 if (!c.images) c.images = [];
                                 if (!c.stats) c.stats = { str: 50, agi: 50, int: 50, vit: 50, dex: 50 };
-                                if (!c.tags) c.tags = [];
                             });
                         };
                         processChars(cat.characters || []);
@@ -1087,35 +947,8 @@
         }
 
         // --------------------------------------------------------------------------
-        // 트리 렌더링 & 태그 필터링
+        // 트리 렌더링
         // --------------------------------------------------------------------------
-        function matchesCharacterFilter(char, q) {
-            if (!q) return true;
-            q = q.toLowerCase().trim();
-            const cleanQuery = q.startsWith('#') ? q.slice(1) : q;
-
-            const nameMatch = char.name.toLowerCase().includes(q) || char.name.toLowerCase().includes(cleanQuery);
-            const tagMatch = (char.tags || []).some(t => t.toLowerCase().includes(cleanQuery));
-            const infoMatch = (char.basicInfo || '').toLowerCase().includes(q);
-
-            return nameMatch || tagMatch || infoMatch;
-        }
-
-        function matchesFilter(category, q) {
-            if (!q) return true;
-            q = q.toLowerCase().trim();
-            if (category.name.toLowerCase().includes(q)) return true;
-            return (category.worlds || []).some(w => matchesFilterWorld(w, q)) || 
-                   (category.characters || []).some(c => matchesCharacterFilter(c, q));
-        }
-
-        function matchesFilterWorld(world, q) {
-            if (!q) return true;
-            q = q.toLowerCase().trim();
-            if (world.name.toLowerCase().includes(q)) return true;
-            return (world.characters || []).some(c => matchesCharacterFilter(c, q));
-        }
-
         function renderTree(filterQuery = '') {
             const container = document.getElementById('tree-root');
             container.innerHTML = '';
@@ -1177,18 +1010,13 @@
                     worldChildren.className = `tree-children ${world.expanded || filterQuery ? 'open' : ''}`;
 
                     (world.characters || []).forEach(char => {
-                        if (filterQuery && !matchesCharacterFilter(char, filterQuery)) return;
-
-                        const tagSummary = (char.tags || []).slice(0, 2).map(t => '#' + escapeHTML(t)).join(' ');
+                        if (filterQuery && !char.name.toLowerCase().includes(filterQuery.toLowerCase())) return;
 
                         const charItem = document.createElement('div');
                         charItem.className = `tree-item ${isCurrent('character', cat.id, world.id, char.id) ? 'active' : ''}`;
                         charItem.innerHTML = `
                             <span class="item-icon">👤</span>
-                            <span onclick="selectNode('character', '${cat.id}', '${world.id}', '${char.id}')">
-                                ${escapeHTML(char.name)}
-                                ${tagSummary ? `<span class="tree-item-tags">${tagSummary}</span>` : ''}
-                            </span>
+                            <span onclick="selectNode('character', '${cat.id}', '${world.id}', '${char.id}')">${escapeHTML(char.name)}</span>
                             <div class="tree-actions">
                                 <button onclick="deleteCharacter('${cat.id}', '${world.id}', '${char.id}')" title="삭제">🗑️</button>
                             </div>
@@ -1200,18 +1028,13 @@
                 });
 
                 (cat.characters || []).forEach(char => {
-                    if (filterQuery && !matchesCharacterFilter(char, filterQuery)) return;
-
-                    const tagSummary = (char.tags || []).slice(0, 2).map(t => '#' + escapeHTML(t)).join(' ');
+                    if (filterQuery && !char.name.toLowerCase().includes(filterQuery.toLowerCase())) return;
 
                     const charItem = document.createElement('div');
                     charItem.className = `tree-item ${isCurrent('character', cat.id, null, char.id) ? 'active' : ''}`;
                     charItem.innerHTML = `
                         <span class="item-icon">👤</span>
-                        <span onclick="selectNode('character', '${cat.id}', null, '${char.id}')">
-                            ${escapeHTML(char.name)}
-                            ${tagSummary ? `<span class="tree-item-tags">${tagSummary}</span>` : ''}
-                        </span>
+                        <span onclick="selectNode('character', '${cat.id}', null, '${char.id}')">${escapeHTML(char.name)}</span>
                         <div class="tree-actions">
                             <button onclick="deleteCharacter('${cat.id}', null, '${char.id}')" title="삭제">🗑️</button>
                         </div>
@@ -1231,16 +1054,21 @@
                    currentSelection.characterId === charId;
         }
 
-        function handleSearch() {
-            renderTree(document.getElementById('search-input').value);
+        function matchesFilter(category, q) {
+            q = q.toLowerCase();
+            if (category.name.toLowerCase().includes(q)) return true;
+            return (category.worlds || []).some(w => matchesFilterWorld(w, q)) || 
+                   (category.characters || []).some(c => c.name.toLowerCase().includes(q));
         }
 
-        function filterByTag(tagName) {
-            const searchInput = document.getElementById('search-input');
-            if (searchInput) {
-                searchInput.value = '#' + tagName;
-                handleSearch();
-            }
+        function matchesFilterWorld(world, q) {
+            q = q.toLowerCase();
+            if (world.name.toLowerCase().includes(q)) return true;
+            return (world.characters || []).some(c => c.name.toLowerCase().includes(q));
+        }
+
+        function handleSearch() {
+            renderTree(document.getElementById('search-input').value);
         }
 
         // --------------------------------------------------------------------------
@@ -1302,7 +1130,6 @@
             const newChar = {
                 id: 'char_' + Date.now(),
                 name,
-                tags: [],
                 images: [],
                 stats: { str: 50, agi: 50, int: 50, vit: 50, dex: 50 },
                 basicInfo: '',
@@ -1343,24 +1170,10 @@
             showEmptyView();
         }
 
-        function updateCharTags(catId, worldId, charId, value) {
-            const char = getCharacter(catId, worldId, charId);
-            if (char) {
-                const parsed = value.split(/[\s,]+/)
-                                     .map(t => t.trim().replace(/^#/, ''))
-                                     .filter(t => t.length > 0);
-                char.tags = [...new Set(parsed)];
-                saveData();
-                renderTree(document.getElementById('search-input').value);
-                renderCharacterEditor(catId, worldId, charId);
-            }
-        }
-
         // --------------------------------------------------------------------------
         // WYSIWYG 서식 에디터 헬퍼 함수
         // --------------------------------------------------------------------------
         function createWYSIWYGEditor(title, fieldName, initialHtml, catId, worldId, charId) {
-            const parsedContent = processWikiSyntax(initialHtml || '');
             return `
                 <div class="section-box">
                     <div class="section-title">${title}</div>
@@ -1371,12 +1184,11 @@
                         <button type="button" onclick="formatDoc('strikeThrough')" title="취소선"><s>S</s></button>
                         <button type="button" onclick="formatDoc('insertUnorderedList')" title="글머리 기호">• 목록</button>
                         <button type="button" onclick="formatDoc('formatBlock', '<h3>')" title="제목">H3</button>
-                        <button type="button" onclick="insertWikiLink()" title="위키 링크 삽입 (자캐 연결)">🔗 [[링크]]</button>
                         <input type="color" onchange="formatDoc('foreColor', this.value)" title="글자색 변경">
                     </div>
                     <div class="rich-editor-content" contenteditable="true" 
                          onblur="updateCharDataHTML('${catId}', '${worldId}', '${charId}', '${fieldName}', this.innerHTML)">
-                        ${parsedContent}
+                        ${initialHtml || ''}
                     </div>
                 </div>
             `;
@@ -1395,7 +1207,7 @@
         }
 
         // --------------------------------------------------------------------------
-        // 뷰 제어 & 캐릭터 프로필
+        // 뷰 제어 & 캐릭터 프로필 (관계 리스트 포함)
         // --------------------------------------------------------------------------
         function selectNode(type, catId, worldId = null, charId = null) {
             clearRelationSelection();
@@ -1416,8 +1228,6 @@
                 renderWorldOrCategoryView('world', catId, worldId);
             } else if (type === 'category') {
                 renderWorldOrCategoryView('category', catId, null);
-            } else if (type === 'stats') {
-                renderStatsView();
             }
         }
 
@@ -1437,8 +1247,8 @@
             }
 
             if (!char.stats) char.stats = { str: 50, agi: 50, int: 50, vit: 50, dex: 50 };
-            if (!char.tags) char.tags = [];
 
+            // 해당 캐릭터가 속한 그룹(세계관 또는 카테고리)에서 이 캐릭터와 맺어진 관계들을 찾아 리스트로 생성
             const targetGroup = worldId ? getWorld(catId, worldId) : getCategory(catId);
             let relationListHTML = '<p style="font-size:13px; color:var(--text-muted);">등록된 관계가 없습니다.</p>';
             
@@ -1459,7 +1269,7 @@
 
                         relationListHTML += `
                             <div class="char-relation-item">
-                                <span><b onclick="navigateToByName('${escapeHTML(otherName)}')" style="cursor:pointer;" title="프로필로 이동">🔗 ${escapeHTML(otherName)}</b> 과(와)의 관계</span>
+                                <span><b>${escapeHTML(otherName)}</b> 과(와)의 관계</span>
                                 <span style="color:var(--text-header);">${escapeHTML(rel.label || '관계명 없음')} (${arrowStr})</span>
                             </div>
                         `;
@@ -1474,9 +1284,6 @@
                     <button class="delete-img-btn" onclick="deleteCharacterImage('${catId}', '${worldId}', '${charId}', ${idx})" title="이미지 삭제">✕</button>
                 </div>
             `).join('');
-
-            const tagsValue = char.tags.map(t => '#' + t).join(' ');
-            const tagBadgesHTML = char.tags.map(t => `<span class="tag-badge" style="cursor:pointer;" onclick="filterByTag('${escapeHTML(t)}')" title="이 태그로 검색">#${escapeHTML(t)}</span>`).join('');
 
             const editor = document.getElementById('editor-view');
             editor.innerHTML = `
@@ -1502,17 +1309,7 @@
                     </div>
                 </div>
 
-                <div class="section-box">
-                    <div class="section-title">
-                        <span>🏷️ 태그 (#)</span>
-                        <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">공백이나 쉼표로 구분하여 입력</span>
-                    </div>
-                    <input type="text" value="${escapeHTML(tagsValue)}" 
-                           placeholder="예: #마법사 #집행관 #20대 (입력 후 Enter 또는 클릭)" 
-                           onchange="updateCharTags('${catId}', '${worldId}', '${charId}', this.value)">
-                    ${tagBadgesHTML ? `<div style="margin-top: 8px;">${tagBadgesHTML}</div>` : ''}
-                </div>
-
+                <!-- 4번 반영: 프로필 하단에 깔끔한 텍스트 관계 리스트 제공 -->
                 <div class="section-box">
                     <div class="section-title">🔗 이 캐릭터의 관계 서사 요약</div>
                     ${relationListHTML}
@@ -1688,7 +1485,7 @@
         }
 
         // --------------------------------------------------------------------------
-        // 무한 세계관 / 카테고리 관계도 뷰 & 물리 엔진 오토 레이아웃
+        // 무한 세계관 / 카테고리 관계도 뷰 (1번: 포커스 하이라이트 모드 적용)
         // --------------------------------------------------------------------------
         function renderWorldOrCategoryView(type, catId, worldId) {
             const target = type === 'world' ? getWorld(catId, worldId) : getCategory(catId);
@@ -1713,12 +1510,11 @@
                             <button type="button" onclick="formatDoc('bold')"><b>B</b></button>
                             <button type="button" onclick="formatDoc('italic')"><i>I</i></button>
                             <button type="button" onclick="formatDoc('underline')"><u>U</u></button>
-                            <button type="button" onclick="insertWikiLink()">🔗 [[링크]]</button>
                             <input type="color" onchange="formatDoc('foreColor', this.value)">
                         </div>
                         <div class="rich-editor-content" contenteditable="true" 
                              onblur="updateWorldDescription('${catId}', '${worldId}', this.innerHTML)">
-                            ${processWikiSyntax(target.description || '')}
+                            ${target.description || ''}
                         </div>
                     </div>
                 `;
@@ -1732,10 +1528,9 @@
                 <div class="section-title">🔗 관계도 (노드를 클릭하면 해당 인물의 관계선만 강조됩니다 / 배경 클릭 시 해제)</div>
                 <div class="relation-view">
                     <div class="relation-toolbar">
-                        <button onclick="autoLayoutRelations()" class="primary">⚡ 관계도 자동 정렬</button>
-                        <button onclick="exportRelationPNG()">📷 PNG 저장</button>
+                        <button onclick="exportRelationPNG()" class="primary">📷 관계도 PNG 저장</button>
                         <button id="delete-relation-btn" class="danger hidden" onclick="deleteSelectedRelation()">🗑️ 관계선 삭제</button>
-                        <button onclick="clearRelationSelection()">❌ 포커스 해제 (ESC)</button>
+                        <button onclick="clearRelationSelection()">❌ 포커스/선택 해제 (ESC)</button>
                         <span id="relation-status" style="font-size:12px; color:var(--accent-color); font-weight:bold;"></span>
                         
                         <div class="zoom-controls">
@@ -1765,111 +1560,6 @@
 
             initInfiniteCanvas(target, type, catId, worldId);
             renderRelations(target, type, catId, worldId);
-        }
-
-        // 포스 디렉티드(Force-Directed) 그래프 오토 레이아웃 알고리즘 (겹침 방지 보정 버전)
-        function autoLayoutRelations() {
-            const targetGroup = getCurrentTargetGroup();
-            if (!targetGroup || !targetGroup.characters || targetGroup.characters.length === 0) {
-                alert('배치할 캐릭터가 없습니다.');
-                return;
-            }
-
-            const chars = targetGroup.characters;
-            const N = chars.length;
-
-            if (N === 1) {
-                chars[0].x = 200;
-                chars[0].y = 180;
-                saveData();
-                renderRelations(targetGroup, currentSelection.type, currentSelection.categoryId, currentSelection.worldId);
-                return;
-            }
-
-            // 네모 박스(110x36) 및 라벨 텍스트 공간을 고려한 최소 간격 설정
-            const minSpacingX = 190; 
-            const minSpacingY = 130;
-            const k = 220; // 기본 반발력 기준 거리
-            let temp = 150;
-            const iterations = 120;
-            const relations = targetGroup.relations || [];
-
-            for (let iter = 0; iter < iterations; iter++) {
-                let dispX = new Array(N).fill(0);
-                let dispY = new Array(N).fill(0);
-
-                // 1. 모든 노드 간 척력 및 네모 박스 영역 겹침 방지
-                for (let i = 0; i < N; i++) {
-                    for (let j = i + 1; j < N; j++) {
-                        let dx = chars[i].x - chars[j].x;
-                        let dy = chars[i].y - chars[j].y;
-                        if (Math.abs(dx) < 1 && Math.abs(dy) < 1) {
-                            dx = (Math.random() - 0.5) * 20;
-                            dy = (Math.random() - 0.5) * 20;
-                        }
-
-                        // 박스 겹침 강제 밀어내기 (가로/세로 영역 검사)
-                        if (Math.abs(dx) < minSpacingX && Math.abs(dy) < minSpacingY) {
-                            const overlapX = minSpacingX - Math.abs(dx);
-                            const overlapY = minSpacingY - Math.abs(dy);
-                            if (overlapX < overlapY) {
-                                const pushX = (dx > 0 ? 1 : -1) * overlapX * 0.6;
-                                dispX[i] += pushX;
-                                dispX[j] -= pushX;
-                            } else {
-                                const pushY = (dy > 0 ? 1 : -1) * overlapY * 0.6;
-                                dispY[i] += pushY;
-                                dispY[j] -= pushY;
-                            }
-                        }
-
-                        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                        const force = (k * k) / dist;
-                        dispX[i] += (dx / dist) * force;
-                        dispY[i] += (dy / dist) * force;
-                        dispX[j] -= (dx / dist) * force;
-                        dispY[j] -= (dy / dist) * force;
-                    }
-                }
-
-                // 2. 관계선으로 연결된 노드 간 인력
-                relations.forEach(rel => {
-                    const idxA = chars.findIndex(c => c.id === rel.from);
-                    const idxB = chars.findIndex(c => c.id === rel.to);
-                    if (idxA !== -1 && idxB !== -1) {
-                        let dx = chars[idxA].x - chars[idxB].x;
-                        let dy = chars[idxA].y - chars[idxB].y;
-                        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                        const force = (dist * dist) / k;
-
-                        dispX[idxA] -= (dx / dist) * force * 0.4;
-                        dispY[idxA] -= (dy / dist) * force * 0.4;
-                        dispX[idxB] += (dx / dist) * force * 0.4;
-                        dispY[idxB] += (dy / dist) * force * 0.4;
-                    }
-                });
-
-                // 3. 이동 거리 갱신
-                for (let i = 0; i < N; i++) {
-                    const dDist = Math.sqrt(dispX[i] * dispX[i] + dispY[i] * dispY[i]) || 1;
-                    const maxDisp = Math.min(dDist, temp);
-                    chars[i].x += (dispX[i] / dDist) * maxDisp;
-                    chars[i].y += (dispY[i] / dDist) * maxDisp;
-                }
-
-                temp *= 0.95; // 쿨다운
-            }
-
-            // 좌표 정규화 (좌측 상단 여백 확보)
-            let minX = Math.min(...chars.map(c => c.x));
-            let minY = Math.min(...chars.map(c => c.y));
-            chars.forEach(c => {
-                c.x = Math.round(c.x - minX + 100);
-                c.y = Math.round(c.y - minY + 100);
-            });
-
-            saveData();
-            renderRelations(targetGroup, currentSelection.type, currentSelection.categoryId, currentSelection.worldId);
         }
 
         function updateWorldDescription(catId, worldId, valStr) {
@@ -2051,8 +1741,7 @@
                     const x2 = charB.x + 55;
                     const y2 = charB.y + 18;
 
-                    // 단일 선일 때도 완만한 곡선을 주어 라벨 공간 확보 (기존 0 -> 25로 보정)
-                    const offset = group.length === 1 ? 25 : (i === 0 ? 45 : -45);
+                    const offset = group.length === 1 ? 0 : (i === 0 ? 30 : -30);
                     const cp = getControlPoint(x1, y1, x2, y2, offset);
 
                     const isSelected = (selectedRelationIndex === index);
@@ -2080,9 +1769,8 @@
 
                     svg.appendChild(path);
 
-                    // 라벨 위치 계산
                     const midX = 0.25 * x1 + 0.5 * cp.x + 0.25 * x2;
-                    const midY = 0.25 * y1 + 0.5 * cp.y + 0.25 * x2;
+                    const midY = 0.25 * y1 + 0.5 * cp.y + 0.25 * y2;
 
                     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                     text.setAttribute('x', midX);
@@ -2191,6 +1879,7 @@
             document.addEventListener('mouseup', onMouseUp);
         }
 
+        // 노드 클릭 시: 첫 클릭은 해당 인물 포커스(하이라이트), 이미 포커스된 상태에서 다른 노드를 클릭하면 두 인물 간 관계 추가
         function handleNodeClickForFocusOrRelation(charId, targetGroup) {
             const statusLabel = document.getElementById('relation-status');
             const delBtn = document.getElementById('delete-relation-btn');
@@ -2198,13 +1887,16 @@
             selectedRelationIndex = null;
 
             if (selectedRelNodeId === null) {
+                // 1단계: 포커스(하이라이트) 모드 활성화
                 selectedRelNodeId = charId;
                 const charName = (targetGroup.characters.find(c => c.id === charId) || {}).name || '';
                 if (statusLabel) statusLabel.innerText = `'${charName}' 포커스 됨 (이 인물과 연결된 선만 강조). 다른 인물을 클릭하면 관계 추가`;
                 renderRelations(targetGroup, currentSelection.type, currentSelection.categoryId, currentSelection.worldId);
             } else if (selectedRelNodeId === charId) {
+                // 자기 자신을 한 번 더 누르면 포커스 해제
                 clearRelationSelection();
             } else {
+                // 2단계: 포커스된 상태에서 다른 노드를 클릭했으므로 두 캐릭터 간 관계 추가 모드로 진입
                 const idA = selectedRelNodeId;
                 const idB = charId;
 
@@ -2274,6 +1966,9 @@
             }
         }
 
+        // --------------------------------------------------------------------------
+        // 관계도 PNG 고화질 이미지 내보내기 (Export PNG)
+        // --------------------------------------------------------------------------
         function exportRelationPNG() {
             const targetGroup = getCurrentTargetGroup();
             if (!targetGroup || !targetGroup.characters || targetGroup.characters.length === 0) {
