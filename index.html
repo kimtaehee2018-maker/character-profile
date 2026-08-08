@@ -373,6 +373,52 @@
             color: var(--text-main);
         }
 
+        /* 컬러 팔레트 관련 스타일 */
+        .palette-container {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .palette-swatch {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            padding: 8px;
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .palette-swatch:hover {
+            border-color: var(--accent-color);
+            transform: translateY(-2px);
+        }
+
+        .palette-swatch.active {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.6);
+        }
+
+        .palette-swatch .color-box {
+            width: 44px;
+            height: 44px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .palette-swatch .color-hex {
+            font-size: 11px;
+            font-family: monospace;
+            color: var(--text-main);
+            font-weight: bold;
+        }
+
         /* ==========================================================================
            3. 메인 콘텐츠 영역 & WYSIWYG 에디터
            ========================================================================== */
@@ -888,6 +934,8 @@
                                     personality: '냉정해 보이지만 <span style="color: #7c4dff;">책임감이 강함</span>.',
                                     setting: '어릴 적 사태로 고아가 되어 집행관으로 자랐다.',
                                     memo: '주요 무기: 스펠건',
+                                    palette: [],
+                                    themeColor: '',
                                     x: 100, y: 120
                                 },
                                 {
@@ -901,6 +949,8 @@
                                     personality: '온화하지만 속을 알 수 없음.',
                                     setting: '엘렌의 상사이자 보호자 역할.',
                                     memo: '',
+                                    palette: [],
+                                    themeColor: '',
                                     x: 340, y: 120
                                 }
                             ],
@@ -931,8 +981,28 @@
         let panStartY = 0;
 
         // --------------------------------------------------------------------------
-        // 테마 관리
+        // 테마 및 프로필 Accent 색상 관리
         // --------------------------------------------------------------------------
+        function applyCharacterThemeColor(hexColor) {
+            if (!hexColor) {
+                resetThemeAccent();
+                return;
+            }
+            const r = parseInt(hexColor.slice(1, 3), 16);
+            const g = parseInt(hexColor.slice(3, 5), 16);
+            const b = parseInt(hexColor.slice(5, 7), 16);
+
+            document.documentElement.style.setProperty('--accent-color', hexColor);
+            document.documentElement.style.setProperty('--accent-hover', hexColor);
+            document.documentElement.style.setProperty('--accent-rgb', `${r}, ${g}, ${b}`);
+        }
+
+        function resetThemeAccent() {
+            document.documentElement.style.removeProperty('--accent-color');
+            document.documentElement.style.removeProperty('--accent-hover');
+            document.documentElement.style.removeProperty('--accent-rgb');
+        }
+
         function changeTheme(themeName) {
             currentTheme = themeName;
             document.documentElement.setAttribute('data-theme', themeName);
@@ -940,10 +1010,17 @@
             
             if (currentSelection.type === 'character' && currentSelection.characterId) {
                 const char = getCharacter(currentSelection.categoryId, currentSelection.worldId, currentSelection.characterId);
-                if (char) initStatChart(char);
-            } else if (currentSelection.type === 'world' || currentSelection.type === 'category') {
-                const target = getCurrentTargetGroup();
-                if (target) drawRelationLines(target);
+                if (char) {
+                    if (char.themeColor) applyCharacterThemeColor(char.themeColor);
+                    else resetThemeAccent();
+                    initStatChart(char);
+                }
+            } else {
+                resetThemeAccent();
+                if (currentSelection.type === 'world' || currentSelection.type === 'category') {
+                    const target = getCurrentTargetGroup();
+                    if (target) drawRelationLines(target);
+                }
             }
         }
 
@@ -974,6 +1051,8 @@
                                 if (!c.images) c.images = [];
                                 if (!c.stats) c.stats = { str: 50, agi: 50, int: 50, vit: 50, dex: 50 };
                                 if (!c.tags) c.tags = []; // 태그 데이터 호환성 보장
+                                if (!c.palette) c.palette = []; // 팔레트 보장
+                                if (c.themeColor === undefined) c.themeColor = '';
                             });
                         };
                         processChars(cat.characters || []);
@@ -1022,6 +1101,126 @@
                 }
             };
             reader.readAsText(file);
+        }
+
+        // --------------------------------------------------------------------------
+        // 컬러 팔레트 추출 알고리즘 (K-Means Clustering Canvas)
+        // --------------------------------------------------------------------------
+        function extractPaletteFromImage(imgSrc, callback) {
+            const img = new Image();
+            img.crossOrigin = 'Anonymous';
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const sampleSize = 50;
+                canvas.width = sampleSize;
+                canvas.height = sampleSize;
+                ctx.drawImage(img, 0, 0, sampleSize, sampleSize);
+
+                const imgData = ctx.getImageData(0, 0, sampleSize, sampleSize).data;
+                const pixels = [];
+
+                for (let i = 0; i < imgData.length; i += 4) {
+                    const r = imgData[i];
+                    const g = imgData[i + 1];
+                    const b = imgData[i + 2];
+                    const a = imgData[i + 3];
+                    if (a > 128) {
+                        pixels.push([r, g, b]);
+                    }
+                }
+
+                if (pixels.length === 0) {
+                    callback(['#241D24', '#8A2431', '#D4B39A', '#302D35', '#B9A7A0']);
+                    return;
+                }
+
+                const k = 5;
+                let centroids = [];
+                const step = Math.floor(pixels.length / k);
+                for (let i = 0; i < k; i++) {
+                    centroids.push([...pixels[Math.min(i * step, pixels.length - 1)]]);
+                }
+
+                for (let iter = 0; iter < 10; iter++) {
+                    const clusters = Array.from({ length: k }, () => []);
+                    for (const p of pixels) {
+                        let minDist = Infinity;
+                        let bestK = 0;
+                        for (let c = 0; c < k; c++) {
+                            const dist = Math.pow(p[0] - centroids[c][0], 2) +
+                                         Math.pow(p[1] - centroids[c][1], 2) +
+                                         Math.pow(p[2] - centroids[c][2], 2);
+                            if (dist < minDist) {
+                                minDist = dist;
+                                bestK = c;
+                            }
+                        }
+                        clusters[bestK].push(p);
+                    }
+
+                    for (let c = 0; c < k; c++) {
+                        if (clusters[c].length > 0) {
+                            let rSum = 0, gSum = 0, bSum = 0;
+                            for (const p of clusters[c]) {
+                                rSum += p[0];
+                                gSum += p[1];
+                                bSum += p[2];
+                            }
+                            centroids[c] = [
+                                Math.round(rSum / clusters[c].length),
+                                Math.round(gSum / clusters[c].length),
+                                Math.round(bSum / clusters[c].length)
+                            ];
+                        }
+                    }
+                }
+
+                const hexColors = centroids.map(c => {
+                    const toHex = n => n.toString(16).padStart(2, '0').toUpperCase();
+                    return `#${toHex(c[0])}${toHex(c[1])}${toHex(c[2])}`;
+                });
+
+                callback(hexColors);
+            };
+            img.onerror = function() {
+                alert('이미지 색상 추출에 실패했습니다.');
+            };
+            img.src = imgSrc;
+        }
+
+        function autoExtractCharPalette(catId, worldId, charId) {
+            const char = getCharacter(catId, worldId, charId);
+            if (!char || !char.images || char.images.length === 0) {
+                alert('팔레트를 추출할 캐릭터 이미지가 없습니다. 갤러리에 이미지를 먼저 추가해 주세요.');
+                return;
+            }
+
+            extractPaletteFromImage(char.images[0], function(colors) {
+                char.palette = colors;
+                saveData();
+                renderCharacterEditor(catId, worldId, charId);
+            });
+        }
+
+        function setCharThemeColor(catId, worldId, charId, hexColor) {
+            const char = getCharacter(catId, worldId, charId);
+            if (char) {
+                char.themeColor = hexColor;
+                saveData();
+                applyCharacterThemeColor(hexColor);
+                renderCharacterEditor(catId, worldId, charId);
+            }
+        }
+
+        function resetCharThemeColor(catId, worldId, charId) {
+            const char = getCharacter(catId, worldId, charId);
+            if (char) {
+                char.themeColor = '';
+                saveData();
+                resetThemeAccent();
+                renderCharacterEditor(catId, worldId, charId);
+            }
         }
 
         // --------------------------------------------------------------------------
@@ -1309,6 +1508,8 @@
                 personality: '',
                 setting: '',
                 memo: '',
+                palette: [],
+                themeColor: '',
                 x: 100 + Math.random() * 200,
                 y: 100 + Math.random() * 200
             };
@@ -1380,7 +1581,7 @@
         }
 
         // --------------------------------------------------------------------------
-        // 뷰 제어 & 캐릭터 프로필 (관계 리스트 및 태그 포함)
+        // 뷰 제어 & 캐릭터 프로필 (관계 리스트 및 태그, 컬러 팔레트 포함)
         // --------------------------------------------------------------------------
         function selectNode(type, catId, worldId = null, charId = null) {
             clearRelationSelection();
@@ -1396,16 +1597,26 @@
             editor.classList.remove('hidden');
 
             if (type === 'character') {
+                const char = getCharacter(catId, worldId, charId);
+                if (char && char.themeColor) {
+                    applyCharacterThemeColor(char.themeColor);
+                } else {
+                    resetThemeAccent();
+                }
                 renderCharacterEditor(catId, worldId, charId);
-            } else if (type === 'world') {
-                renderWorldOrCategoryView('world', catId, worldId);
-            } else if (type === 'category') {
-                renderWorldOrCategoryView('category', catId, null);
+            } else {
+                resetThemeAccent();
+                if (type === 'world') {
+                    renderWorldOrCategoryView('world', catId, worldId);
+                } else if (type === 'category') {
+                    renderWorldOrCategoryView('category', catId, null);
+                }
             }
         }
 
         function showEmptyView() {
             clearRelationSelection();
+            resetThemeAccent();
             currentSelection = { type: null, categoryId: null, worldId: null, characterId: null };
             saveData();
             document.getElementById('empty-view').classList.remove('hidden');
@@ -1421,6 +1632,7 @@
 
             if (!char.stats) char.stats = { str: 50, agi: 50, int: 50, vit: 50, dex: 50 };
             if (!char.tags) char.tags = [];
+            if (!char.palette) char.palette = [];
 
             // 태그 HTML 렌더링
             const tagsHTML = (char.tags || []).map((t, idx) => `
@@ -1429,6 +1641,21 @@
                     <span onclick="removeCharTag('${catId}', '${worldId}', '${charId}', ${idx})" style="margin-left: 6px; cursor: pointer; font-weight: bold; opacity: 0.8;">✕</span>
                 </span>
             `).join('');
+
+            // 대표 색상 (컬러 팔레트) HTML 렌더링
+            let paletteHTML = '';
+            if (char.palette && char.palette.length > 0) {
+                paletteHTML = char.palette.map(color => `
+                    <div class="palette-swatch ${char.themeColor === color ? 'active' : ''}" 
+                         onclick="setCharThemeColor('${catId}', '${worldId}', '${charId}', '${color}')"
+                         title="클릭하여 프로필 테마 색상으로 설정">
+                        <div class="color-box" style="background-color: ${color};"></div>
+                        <span class="color-hex">${color}</span>
+                    </div>
+                `).join('');
+            } else {
+                paletteHTML = '<span style="font-size:12px; color:var(--text-muted);">추출된 대표 색상이 없습니다. 이미지를 올리고 자동 추출 버튼을 눌러보세요!</span>';
+            }
 
             // 캐릭터 관계 리스트
             const targetGroup = worldId ? getWorld(catId, worldId) : getCategory(catId);
@@ -1491,7 +1718,24 @@
                     </div>
                 </div>
 
-                <!-- 새로 추가된 태그 관리 섹션 -->
+                <!-- 캐릭터 컬러 팔레트 추출 및 테마 지정 섹션 -->
+                <div class="section-box">
+                    <div class="section-title">
+                        <span>🎨 대표 색상 팔레트</span>
+                        <div style="display:flex; gap:6px;">
+                            <button type="button" class="primary" style="font-size:11px; padding:3px 8px;" onclick="autoExtractCharPalette('${catId}', '${worldId}', '${charId}')">🎨 이미지에서 추출</button>
+                            ${char.themeColor ? `<button type="button" class="danger" style="font-size:11px; padding:3px 8px;" onclick="resetCharThemeColor('${catId}', '${worldId}', '${charId}')">테마 색상 해제</button>` : ''}
+                        </div>
+                    </div>
+                    <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">
+                        추출된 대표 색상 스와치를 클릭하면 캐릭터의 프로필 테마 색상으로 적용됩니다.
+                    </div>
+                    <div class="palette-container">
+                        ${paletteHTML}
+                    </div>
+                </div>
+
+                <!-- 태그 관리 섹션 -->
                 <div class="section-box">
                     <div class="section-title">🏷️ 태그 관리</div>
                     <div class="character-tags-box">
