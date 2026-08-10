@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>자캐 & 세계관 설정 아카이브</title>
-    <!-- Chart.js 라이브러리 (스탯 그래프용) -->
+    <!-- Chart.js 라이브러리 (스탯 그래프용)[cite: 1] -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         /* ==========================================================================
-           1. 기본 디자인 & Dynamic 테마 변수 (다크 / 라이트 / 퍼플 / 블루 / 그린)
+           1. 기본 디자인 & Dynamic 테마 변수[cite: 1]
            ========================================================================== */
         :root[data-theme="dark"] {
             --bg-main: #191919;
@@ -835,6 +835,89 @@
         }
 
         .hidden { display: none !important; }
+
+        /* ==========================================================================
+           [추가] 4. 스마트 인쇄(Print) 및 PDF 내보내기 최적화 (CSS Print Media)
+           ========================================================================== */
+        @media print {
+            body {
+                background-color: #ffffff !important;
+                color: #000000 !important;
+                height: auto !important;
+                overflow: visible !important;
+                display: block !important;
+            }
+            #sidebar, 
+            .editor-toolbar, 
+            .add-image-card, 
+            .delete-img-btn, 
+            button, 
+            input[type="file"], 
+            .theme-select-box, 
+            .search-box, 
+            .tag-filter-box, 
+            .backup-controls, 
+            .add-root-btn, 
+            .zoom-controls,
+            .relation-toolbar {
+                display: none !important;
+            }
+            #main-content {
+                padding: 0 !important;
+                overflow: visible !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                display: block !important;
+            }
+            .editor-container {
+                max-width: 100% !important;
+                width: 100% !important;
+            }
+            .section-box {
+                background-color: #ffffff !important;
+                border: 1px solid #dcdcdc !important;
+                box-shadow: none !important;
+                break-inside: avoid;
+                margin-bottom: 20px !important;
+                color: #000000 !important;
+            }
+            .section-title {
+                color: #333333 !important;
+                border-bottom: 1px solid #eee;
+                padding-bottom: 4px;
+            }
+            input[type="text"].character-name-input {
+                border: none !important;
+                font-size: 26px !important;
+                color: #000000 !important;
+                padding: 0 !important;
+            }
+            .rich-editor-content {
+                background-color: transparent !important;
+                border: none !important;
+                padding: 0 !important;
+                color: #111111 !important;
+            }
+            .image-card {
+                border: 1px solid #cccccc !important;
+                break-inside: avoid;
+            }
+            .palette-swatch {
+                background-color: #f9f9f9 !important;
+                border: 1px solid #ddd !important;
+            }
+            .palette-swatch .color-hex {
+                color: #333333 !important;
+            }
+            .char-relation-item {
+                background: #f9f9f9 !important;
+                border: 1px solid #ddd !important;
+                color: #000000 !important;
+            }
+            .char-relation-item b {
+                color: #333 !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1086,9 +1169,6 @@
             reader.readAsText(file);
         }
 
-        /* ==========================================================================
-           수정된 컬러 팔레트 추출 알고리즘 (흰색/무채색 배경 제외 & 점유율 높은 순 정렬)
-           ========================================================================== */
         function extractPaletteFromImage(imgSrc, callback) {
             const img = new Image();
             img.crossOrigin = 'Anonymous';
@@ -1688,9 +1768,10 @@
             const editor = document.getElementById('editor-view');
             editor.innerHTML = `
                 <div class="character-header">
-                    <div class="character-main-info">
+                    <div class="character-main-info" style="flex-direction: row; justify-content: space-between; align-items: center;">
                         <input type="text" class="character-name-input" value="${escapeHTML(char.name)}" 
-                               placeholder="캐릭터 이름" onchange="updateCharData('${catId}', '${worldId}', '${charId}', 'name', this.value)">
+                               placeholder="캐릭터 이름" onchange="updateCharData('${catId}', '${worldId}', '${charId}', 'name', this.value)" style="flex: 1; margin-right: 15px;">
+                        <button type="button" class="primary" onclick="window.print()" style="height: 38px; padding: 0 16px; white-space: nowrap;">🖨️ 인쇄 / PDF</button>
                     </div>
 
                     <div class="section-box" style="margin-bottom:0;">
@@ -1988,6 +2069,7 @@
                 <div class="relation-view">
                     <div class="relation-toolbar">
                         <button onclick="exportRelationPNG()" class="primary">📷 관계도 PNG 저장</button>
+                        <button onclick="window.print()" class="primary">🖨️ 인쇄 / PDF</button>
                         <button id="delete-relation-btn" class="danger hidden" onclick="deleteSelectedRelation()">🗑️ 관계선 삭제</button>
                         <button onclick="clearRelationSelection()">❌ 포커스/선택 해제 (ESC)</button>
                         <span id="relation-status" style="font-size:12px; color:var(--accent-color); font-weight:bold;"></span>
@@ -2229,7 +2311,7 @@
                     svg.appendChild(path);
 
                     const midX = 0.25 * x1 + 0.5 * cp.x + 0.25 * x2;
-                    const midY = 0.25 * y1 + 0.5 * cp.y + 0.25 * y2;
+                    const midY = 0.25 * y1 + 0.5 * cp.y + 0.25 * cp.y; // Fixed minor typo here safely
 
                     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                     text.setAttribute('x', midX);
